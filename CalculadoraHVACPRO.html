@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=3.0">
+    <title>Calculadora HVAC - Frio7</title>
+
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Frio7 HVAC">
+    <link rel="apple-touch-icon" href="logotipo.jpg"> 
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #FF8C00 0%, #f5f5f5 100%);
+            min-height: 100vh;
+            padding: 10px;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #666666 0%, #4a4a4a 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .logo {
+            width: 120px;
+            height: auto;
+            margin-bottom: 10px;
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            margin-bottom: 8px;
+            font-weight: 300;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 0.95rem;
+        }
+
+        .menu-container {
+            padding: 20px;
+        }
+
+        .menu-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .menu-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            touch-action: manipulation;
+            user-select: none;
+        }
+
+        .menu-card:hover,
+        .menu-card:active {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(255, 140, 0, 0.2);
+            border-color: #FF8C00;
+        }
+
+        .menu-card.active {
+            background: linear-gradient(135deg, #FF8C00 0%, #87CEEB 100%);
+            color: white;
+            border-color: #FF8C00;
+        }
+
+        .menu-card h3 {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .menu-card.active h3 {
+            color: white;
+        }
+
+        .menu-card p {
+            color: #666;
+            line-height: 1.4;
+            font-size: 0.9rem;
+        }
+
+        .menu-card.active p {
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .calculator-section {
+            display: none;
+            padding: 10px 0;
+        }
+
+        .calculator-section.active {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 1rem;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        .input-wrapper input {
+            width: 100%;
+            padding: 15px 60px 15px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            background: #f9f9f9;
+            -webkit-appearance: none;
+            -moz-appearance: textfield;
+        }
+
+        .input-wrapper input::-webkit-outer-spin-button,
+        .input-wrapper input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .input-wrapper input:focus {
+            outline: none;
+            border-color: #FF8C00;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(255, 140, 0, 0.1);
+        }
+
+        .unit {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #666;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .calculate-btn, .ai-recommendation-btn {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, #FF8C00 0%, #87CEEB 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 25px 0;
+            touch-action: manipulation;
+            user-select: none;
+
+            /* --- Efecto Shimmer añadido --- */
+            position: relative; /* Necesario para posicionar el pseudo-elemento */
+            overflow: hidden; /* Oculta el destello fuera del botón */
+            z-index: 1; /* Asegura que el contenido del botón esté por encima del destello */
+        }
+
+        /* Pseudo-elemento para el efecto de destello */
+        .calculate-btn::before, .ai-recommendation-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 50%; /* Ancho del destello */
+            height: 100%;
+            /* Degradado blanco transparente para simular luz */
+            background: linear-gradient(to right, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.3) 70%, rgba(255, 255, 255, 0) 100%);
+            transform: translateX(-100%) skewX(-30deg); /* Empieza fuera por la izquierda, inclinado */
+            transition: transform 0.8s ease-in-out; /* Transición suave y lenta */
+            z-index: 2; /* Ligeramente por encima del fondo del botón */
+        }
+
+        /* Movimiento del destello al pasar el ratón (o tocar) */
+        .calculate-btn:hover::before, .ai-recommendation-btn:hover::before {
+            transform: translateX(250%) skewX(-30deg); /* Se mueve a través del botón y más allá */
+        }
+
+        .calculate-btn:hover,
+        .calculate-btn:active,
+        .ai-recommendation-btn:hover,
+        .ai-recommendation-btn:active {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(255, 140, 0, 0.3);
+        }
+
+        .results {
+            background: #f9f9f9;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 15px;
+            display: none;
+            border: 1px solid #e0e0e0;
+        }
+
+        .results.show {
+            display: block;
+            animation: slideIn 0.5s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .results h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+            text-align: center;
+        }
+
+        .result-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+
+        .result-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border-left: 4px solid #FF8C00;
+            transition: transform 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+
+        .result-card:active {
+            transform: translateY(-2px);
+        }
+
+        .result-card h4 {
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .result-value {
+            font-size: 1.6rem;
+            font-weight: bold;
+            color: #FF8C00;
+            margin-bottom: 5px;
+        }
+
+        .result-unit {
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .highlight {
+            background: linear-gradient(135deg, #FF8C00 0%, #87CEEB 100%);
+            color: white;
+            border-left: none;
+        }
+
+        .highlight .result-value {
+            color: white;
+        }
+
+        .highlight .result-unit {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .highlight h4 {
+            color: white;
+        }
+
+        .back-btn {
+            background: #666666;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+            touch-action: manipulation;
+            user-select: none;
+        }
+
+        .back-btn:hover,
+        .back-btn:active {
+            background: #4a4a4a;
+            transform: translateY(-1px);
+        }
+
+        .section-title {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.4rem;
+            font-weight: 600;
+        }
+
+        /* Estilos para la sección de recomendación de IA */
+        .ai-recommendation-section {
+            background: #e6f7ff; /* Un azul claro para diferenciar */
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 20px;
+            border: 1px solid #b3e0ff;
+            display: none; /* Oculto por defecto */
+            animation: fadeIn 0.5s ease;
+        }
+
+        .ai-recommendation-section.show {
+            display: block;
+        }
+
+        .ai-recommendation-section h4 {
+            color: #0056b3; /* Azul oscuro */
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+            text-align: center;
+        }
+
+        .ai-recommendation-section p {
+            color: #333;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+            font-size: 1rem;
+            color: #FF8C00;
+        }
+
+        .loading-spinner.show {
+            display: block;
+        }
+
+        /* Mejoras para tablets */
+        @media (min-width: 768px) {
+            .container {
+                max-width: 800px;
+                margin: 20px auto;
+            }
+            
+            .menu-container {
+                padding: 30px;
+            }
+            
+            .menu-grid {
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 20px;
+            }
+            
+            .result-grid {
+                grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+                gap: 15px;
+            }
+            
+            .header h1 {
+                font-size: 2.2rem;
+            }
+            
+            .logo {
+                width: 140px;
+            }
+        }
+
+        /* Mejoras para pantallas grandes */
+        @media (min-width: 1024px) {
+            .container {
+                max-width: 900px;
+            }
+            
+            .result-grid {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            }
+        }
+
+        /* Ajustes específicos para dispositivos táctiles */
+        @media (hover: none) and (pointer: coarse) {
+            .menu-card,
+            .calculate-btn,
+            .back-btn {
+                padding: 18px 20px;
+                min-height: 48px;
+            }
+            
+            .input-wrapper input {
+                padding: 18px 60px 18px 18px;
+                min-height: 48px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img class="logo" src="logotipo.jpg" alt="Logo Frio7" onerror="this.onerror=null;this.src='https://placehold.co/120x60/FF8C00/FFFFFF?text=Frio7'">
+            <h1>Calculadora HVAC</h1>
+            <p>Cálculo profesional de conductos y tuberías</p>
+        </div>
+        
+        <div class="menu-container">
+            <div id="main-menu">
+                <div class="menu-grid">
+                    <div class="menu-card" onclick="showCalculator('conductos')" ontouchstart="">
+                        <h3>Conductos HVAC</h3>
+                        <p>Calcular sección de conducto rectangular adaptada a múltiplos de 50mm según caudal, altura y pérdida de carga</p>
+                    </div>
+                    
+                    <div class="menu-card" onclick="showCalculator('caudal')" ontouchstart="">
+                        <h3>Caudal por Conducto</h3>
+                        <p>Calcular caudal máximo y velocidad según dimensiones del conducto y pérdida de carga</p>
+                    </div>
+                    
+                    <div class="menu-card" onclick="showCalculator('tuberias')" ontouchstart="">
+                        <h3>Tuberías PPR Aquatherm</h3>
+                        <p>Calcular diámetro de tubería PPR según caudal y pérdida de carga, adaptado a estándares Aquatherm</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="calc-conductos" class="calculator-section">
+                <button class="back-btn" onclick="showMenu()" ontouchstart="">← Volver al menú</button>
+                <h2 class="section-title">Cálculo de Conductos HVAC</h2>
+                
+                <div class="input-group">
+                    <label for="caudal1">Caudal de aire</label>
+                    <div class="input-wrapper">
+                        <input type="number" id="caudal1" placeholder="Ingrese el caudal" step="0.1" min="0" inputmode="decimal">
+                        <span class="unit">m³/h</span>
+                    </div>
+                </div>
+                
+                <div class="input-group">
+                    <label for="altura1">Altura del conducto</label>
+                    <div class="input-wrapper">
+                        <input type="number" id="altura1" placeholder="Ingrese la altura" step="1" min="1" inputmode="numeric">
+                        <span class="unit">mm</span>
+                    </div>
+                </div>
+                
+                <div class="input-group">
+                    <label for="perdida1">Pérdida de carga específica</label>
+                    <div class="input-wrapper">
+                        <input type="number" id="perdida1" value="0.1" step="0.01" min="0.01" inputmode="decimal">
+                        <span class="unit">mmca/m</span>
+                    </div>
+                </div>
+                
+                <button class="calculate-btn" onclick="calcularConductos()" ontouchstart="">Calcular Conducto</button>
+                
+                <div class="results" id="results1">
+                    <h3>Resultados del Cálculo</h3>
+                    <div class="result-grid">
+                        <div class="result-card">
+                            <h4>Sección Teórica</h4>
+                            <div class="result-value" id="seccionTeorica1">-</div>
+                            <div class="result-unit">mm</div>
+                        </div>
+                        
+                        <div class="result-card highlight">
+                            <h4>Sección Adaptada</h4>
+                            <div class="result-value" id="seccionAdaptada1">-</div>
+                            <div class="result-unit">mm (múltiplo de 50)</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <h4>Velocidad Teórica</h4>
+                            <div class="result-value" id="velocidadTeorica1">-</div>
+                            <div class="result-unit">m/s</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <h4>Velocidad Real</h4>
+                            <div class="result-value" id="velocidadReal1">-</div>
+                            <div class="result-unit">m/s</div>
+                        </div>
+                    </div>
+                    <button class="ai-recommendation-btn" style="display:none;" onclick="getHvacRecommendation('conductos')" ontouchstart="">Obtener Recomendación HVAC ✨</button>
+                    <div class="loading-spinner" id="loading1">Cargando recomendación...</div>
+                    <div class="ai-recommendation-section" id="aiRecommendation1">
+                        <h4>Recomendación de IA</h4>
+                        <p id="aiRecommendationText1"></p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="calc-caudal" class="calculator-section">
+                <button class="back-btn" onclick="showMenu()" ontouchstart="">← Volver al menú</button>
+                <h2 class="section-title">Cálculo de Caudal por Conducto</h2>
+                
+                <div class="input-group">
+                    <label for="altura2">Altura del conducto</label>
+                    <div class="input-wrapper">
+                        <input type="number" id="altura2" placeholder="Ingrese la altura" step="1" min="1" inputmode="numeric">
+                        <span class="unit">mm</span>
+                    </div>
+                </div>
+                
+                <div class="input-group">
+                    <label for="anchura2">Anchura del conducto</label>
+                    <div class="input-wrapper">
+                        <input type="number" id="anchura2" placeholder="Ingrese la anchura" step="1" min="1" inputmode="numeric">
+                        <span class="unit">mm</span>
+                    </div>
+                </div>
+                
+                <div class="input-group">
+                    <label for="perdida2">Pérdida de carga específica</label>
+                    <div class="input-wrapper">
+                        <input type="number" id="perdida2" value="0.1" step="0.01" min="0.01" inputmode="decimal">
+                        <span class="unit">mmca/m</span>
+                    </div>
+                </div>
+                
+                <button class="calculate-btn" onclick="calcularCaudal()" ontouchstart="">Calcular Caudal</button>
+                
+                <div class="results" id="results2">
+                    <h3>Resultados del Cálculo</h3>
+                    <div class="result-grid">
+                        <div class="result-card highlight">
+                            <h4>Caudal Máximo</h4>
+                            <div class="result-value" id="caudalMax">-</div>
+                            <div class="result-unit">m³/h</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <h4>Velocidad</h4>
+                            <div class="result-value" id="velocidad2">-</div>
+                            <div class="result-unit">m/s</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <h4>Sección</h4>
+                            <div class="result-value" id="seccion2">-</div>
+                            <div class="result-unit">mm</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <h4>Área</h4>
+                            <div class="result-value" id="area2">-</div>
+                            <div class="result-unit">m²</div>
+                        </div>
+                    </div>
+                    <button class="ai-recommendation-btn" style="display:none;" onclick="getHvacRecommendation('caudal')" ontouchstart="">Obtener Recomendación HVAC ✨</button>
+                    <div class="loading-spinner" id="loading2">Cargando recomendación...</div>
+                    <div class="ai-recommendation-section" id="aiRecommendation2">
+                        <h4>Recomendación de IA</h4>
+                        <p id="aiRecommendationText2"></p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="calc-tuberias" class="calculator-section">
+                <button class="back-btn" onclick="showMenu()" ontouchstart="">← Volver al menú</button>
+                <h2 class="section-title">Cálculo de Tuberías PPR Aquatherm</h2>
+                
+                <div class="input-group">
+                    <label for="caudal3">Caudal de agua</label>
+                    <div class="input-wrapper">
+                        <input type="number" id="caudal3" placeholder="Ingrese el caudal" step="0.1" min="0" inputmode="decimal">
+                        <span class="unit">l/h</span>
+                    </div>
+                </div>
+                
+                <div class="input-group">
+                    <label for="perdida3">Pérdida de carga específica</label>
+                    <div class="input-wrapper">
+                        <input type="number" id="perdida3" value="50" step="1" min="1" inputmode="numeric">
+                        <span class="unit">mmca/m</span>
+                    </div>
+                </div>
+                
+                <button class="calculate-btn" onclick="calcularTuberias()" ontouchstart="">Calcular Tubería</button>
+                
+                <div class="results" id="results3">
+                    <h3>Resultados del Cálculo</h3>
+                    <div class="result-grid">
+                        <div class="result-card">
+                            <h4>Diámetro Teórico</h4>
+                            <div class="result-value" id="diametroTeorico">-</div>
+                            <div class="result-unit">mm</div>
+                        </div>
+                        
+                        <div class="result-card highlight">
+                            <h4>Diámetro Aquatherm</h4>
+                            <div class="result-value" id="diametroAquatherm">-</div>
+                            <div class="result-unit">mm (Ø nominal)</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <h4>Diámetro Interior</h4>
+                            <div class="result-value" id="diametroInterior">-</div>
+                            <div class="result-unit">mm</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <h4>Velocidad Real</h4>
+                            <div class="result-value" id="velocidadReal3">-</div>
+                            <div class="result-unit">m/s</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <h4>Pérdida Real</h4>
+                            <div class="result-value" id="perdidaReal3">-</div>
+                            <div class="result-unit">mmca/m</div>
+                        </div>
+                    </div>
+                    <button class="ai-recommendation-btn" style="display:none;" onclick="getHvacRecommendation('tuberias')" ontouchstart="">Obtener Recomendación HVAC ✨</button>
+                    <div class="loading-spinner" id="loading3">Cargando recomendación...</div>
+                    <div class="ai-recommendation-section" id="aiRecommendation3">
+                        <h4>Recomendación de IA</h4>
+                        <p id="aiRecommendationText3"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Diámetros estándar Aquatherm (nominal : interior en mm)
+        const diametrosAquatherm = {
+            16: 13.2,
+            20: 16.6,
+            25: 20.4,
+            32: 26.6,
+            40: 32.6,
+            50: 40.8,
+            63: 51.4,
+            75: 61.2,
+            90: 73.6,
+            110: 90.0,
+            125: 102.2,
+            140: 114.6,
+            160: 130.8,
+            180: 147.0,
+            200: 163.4,
+            225: 184.0,
+            250: 204.6,
+            280: 229.0,
+            315: 257.8,
+            355: 290.6,
+            400: 327.4
+        };
+
+        // Función para mostrar alertas compatibles con móvil
+        function showAlert(message) {
+            alert(message); // Cambiado a alert simple para mejor compatibilidad móvil
+        }
+
+        function showMenu() {
+            document.getElementById('main-menu').style.display = 'block';
+            document.querySelectorAll('.calculator-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            // Ocultar todos los resultados y recomendaciones de IA
+            document.querySelectorAll('.results').forEach(result => {
+                result.classList.remove('show');
+            });
+            document.querySelectorAll('.ai-recommendation-btn').forEach(btn => {
+                btn.style.display = 'none';
+            });
+            document.querySelectorAll('.ai-recommendation-section').forEach(section => {
+                section.classList.remove('show');
+                section.querySelector('p').textContent = ''; // Limpiar texto de recomendación
+            });
+            document.querySelectorAll('.loading-spinner').forEach(spinner => {
+                spinner.classList.remove('show');
+            });
+
+            // Restablecer valores de entrada
+            document.getElementById('caudal1').value = '';
+            document.getElementById('altura1').value = '';
+            document.getElementById('perdida1').value = '0.1';
+
+            document.getElementById('altura2').value = '';
+            document.getElementById('anchura2').value = '';
+            document.getElementById('perdida2').value = '0.1';
+
+            document.getElementById('caudal3').value = '';
+            document.getElementById('perdida3').value = '50';
+        }
+
+        function showCalculator(type) {
+            document.getElementById('main-menu').style.display = 'none';
+            document.querySelectorAll('.calculator-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            document.getElementById('calc-' + type).classList.add('active');
+            
+            // Hacer scroll hacia arriba suavemente
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function calcularConductos() {
+            const caudal = parseFloat(document.getElementById('caudal1').value);
+            const altura = parseFloat(document.getElementById('altura1').value);
+            const perdida = parseFloat(document.getElementById('perdida1').value);
+            
+            if (isNaN(caudal) || isNaN(altura) || isNaN(perdida) || caudal <= 0 || altura <= 0 || perdida <= 0) {
+                showAlert('Por favor, complete todos los campos con valores numéricos positivos.');
+                return;
+            }
+            
+            const caudalMs = caudal / 3600; // m³/h a m³/s
+            const alturaM = altura / 1000; // mm a m
+            
+            let anchuraTeoricaM;
+            let velocidadTeorica;
+            
+            let initialAnchura = caudalMs / (alturaM * 2); 
+            anchuraTeoricaM = initialAnchura;
+
+            for (let i = 0; i < 10; i++) { 
+                const areaTeorica = alturaM * anchuraTeoricaM;
+                velocidadTeorica = caudalMs / areaTeorica;
+                const perimetroMojado = 2 * (alturaM + anchuraTeoricaM);
+                const diametroHidraulico = (4 * areaTeorica) / perimetroMojado;
+                const factorFriccion = 0.02; 
+                
+                const perdidaPaM = perdida * 9.80665;
+
+                const velocidadObjetivo = Math.sqrt((2 * perdidaPaM * diametroHidraulico) / (factorFriccion * 1.2));
+                
+                if (velocidadObjetivo === 0) { 
+                    anchuraTeoricaM = 0;
+                    break;
+                }
+                anchuraTeoricaM = caudalMs / (alturaM * velocidadObjetivo);
+            }
+            
+            const anchuraTeoricaMm = anchuraTeoricaM * 1000; 
+            const alturaAdaptadaMm = Math.ceil(altura / 50) * 50;
+            const anchuraAdaptadaMm = Math.ceil(anchuraTeoricaMm / 50) * 50;
+            
+            const areaReal = (alturaAdaptadaMm / 1000) * (anchuraAdaptadaMm / 1000); 
+            const velocidadReal = caudalMs / areaReal;
+
+            document.getElementById('seccionTeorica1').textContent = `${altura} x ${Math.round(anchuraTeoricaMm)}`;
+            document.getElementById('seccionAdaptada1').textContent = `${alturaAdaptadaMm} x ${anchuraAdaptadaMm}`;
+            document.getElementById('velocidadTeorica1').textContent = velocidadTeorica.toFixed(2);
+            document.getElementById('velocidadReal1').textContent = velocidadReal.toFixed(2);
+            
+            document.getElementById('results1').classList.add('show');
+            document.querySelector('#results1 .ai-recommendation-btn').style.display = 'block'; // Mostrar el botón de IA
+            document.getElementById('aiRecommendation1').classList.remove('show'); // Ocultar recomendación previa
+            document.getElementById('aiRecommendationText1').textContent = ''; // Limpiar texto de recomendación previa
+            document.getElementById('loading1').classList.remove('show'); // Ocultar spinner
+
+            // Scroll suave hacia los resultados
+            setTimeout(() => {
+                document.getElementById('results1').scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'start' 
+                });
+            }, 100);
+        }
+
+        function calcularCaudal() {
+            const altura = parseFloat(document.getElementById('altura2').value);
+            const anchura = parseFloat(document.getElementById('anchura2').value);
+            const perdida = parseFloat(document.getElementById('perdida2').value);
+            
+            if (isNaN(altura) || isNaN(anchura) || isNaN(perdida) || altura <= 0 || anchura <= 0 || perdida <= 0) {
+                showAlert('Por favor, complete todos los campos con valores numéricos positivos.');
+                return;
+            }
+            
+            const alturaM = altura / 1000; 
+            const anchuraM = anchura / 1000; 
+            const area = alturaM * anchuraM; 
+            const perimetroMojado = 2 * (alturaM + anchuraM); 
+            const diametroHidraulico = (4 * area) / perimetroMojado; 
+            const factorFriccion = 0.02; 
+            
+            const perdidaPaM = perdida * 9.80665;
+            
+            const velocidad = Math.sqrt((2 * perdidaPaM * diametroHidraulico) / (factorFriccion * 1.2)); 
+            
+            const caudalMs = area * velocidad; 
+            const caudalMh = caudalMs * 3600; 
+            
+            document.getElementById('caudalMax').textContent = Math.round(caudalMh);
+            document.getElementById('velocidad2').textContent = velocidad.toFixed(2);
+            document.getElementById('seccion2').textContent = `${altura} x ${anchura}`;
+            document.getElementById('area2').textContent = area.toFixed(4);
+            
+            document.getElementById('results2').classList.add('show');
+            document.querySelector('#results2 .ai-recommendation-btn').style.display = 'block'; // Mostrar el botón de IA
+            document.getElementById('aiRecommendation2').classList.remove('show'); // Ocultar recomendación previa
+            document.getElementById('aiRecommendationText2').textContent = ''; // Limpiar texto de recomendación previa
+            document.getElementById('loading2').classList.remove('show'); // Ocultar spinner
+            
+            // Scroll suave hacia los resultados
+            setTimeout(() => {
+                document.getElementById('results2').scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'start' 
+                });
+            }, 100);
+        }
+
+        function calcularTuberias() {
+            const caudal = parseFloat(document.getElementById('caudal3').value);
+            const perdida = parseFloat(document.getElementById('perdida3').value);
+            
+            if (isNaN(caudal) || isNaN(perdida) || caudal <= 0 || perdida <= 0) {
+                showAlert('Por favor, complete todos los campos con valores numéricos positivos.');
+                return;
+            }
+            
+            const caudalMs = caudal / 3600000; 
+            const perdidaM = perdida / 1000; 
+            
+            const C = 150; 
+            
+            let diametroMTeorico = Math.pow(caudalMs / (0.2788 * C * Math.pow(perdidaM, 0.54)), 1/2.63);
+            const diametroTeoricoMm = diametroMTeorico * 1000; 
+            
+            let diametroAquathermNominal = null;
+            let diametroInteriorReal = null;
+            
+            const nominalDiameters = Object.keys(diametrosAquatherm).map(Number).sort((a, b) => a - b);
+
+            for (const nominal of nominalDiameters) {
+                const interior = diametrosAquatherm[nominal];
+                if (interior >= diametroTeoricoMm) {
+                    diametroAquathermNominal = nominal;
+                    diametroInteriorReal = interior;
+                    break;
+                }
+            }
+
+            if (diametroAquathermNominal === null && nominalDiameters.length > 0) {
+                const maxNominal = nominalDiameters[nominalDiameters.length - 1];
+                diametroAquathermNominal = maxNominal;
+                diametroInteriorReal = diametrosAquatherm[maxNominal];
+                showAlert('El caudal y la pérdida de carga requieren un diámetro superior a los estándares Aquatherm listados. Se ha seleccionado el diámetro más grande disponible.');
+            } else if (diametroAquathermNominal === null && nominalDiameters.length === 0) {
+                showAlert('No hay diámetros de Aquatherm configurados. Por favor, revise la lista de diámetros.');
+                return;
+            }
+
+            const diametroInteriorRealM = diametroInteriorReal / 1000; 
+            const areaInteriorRealM2 = Math.PI * Math.pow(diametroInteriorRealM / 2, 2);
+            
+            const velocidadReal = caudalMs / areaInteriorRealM2; 
+            
+            const perdidaRealM = Math.pow(caudalMs / (0.2788 * C * Math.pow(diametroInteriorRealM, 2.63)), 1/0.54);
+            const perdidaRealMmCa = perdidaRealM * 1000; 
+
+            document.getElementById('diametroTeorico').textContent = diametroTeoricoMm.toFixed(2);
+            document.getElementById('diametroAquatherm').textContent = diametroAquathermNominal;
+            document.getElementById('diametroInterior').textContent = diametroInteriorReal.toFixed(2);
+            document.getElementById('velocidadReal3').textContent = velocidadReal.toFixed(2);
+            document.getElementById('perdidaReal3').textContent = perdidaRealMmCa.toFixed(2);
+            
+            document.getElementById('results3').classList.add('show');
+            document.querySelector('#results3 .ai-recommendation-btn').style.display = 'block'; // Mostrar el botón de IA
+            document.getElementById('aiRecommendation3').classList.remove('show'); // Ocultar recomendación previa
+            document.getElementById('aiRecommendationText3').textContent = ''; // Limpiar texto de recomendación previa
+            document.getElementById('loading3').classList.remove('show'); // Ocultar spinner
+
+            // Scroll suave hacia los resultados
+            setTimeout(() => {
+                document.getElementById('results3').scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'start' 
+                });
+            }, 100);
+        }
+
+        /**
+         * Función para obtener una recomendación de HVAC usando la API de Gemini.
+         * @param {string} calculatorType - El tipo de calculadora ('conductos', 'caudal', 'tuberias').
+         */
+        async function getHvacRecommendation(calculatorType) {
+            let prompt = '';
+            let loadingSpinnerId = '';
+            let recommendationSectionId = '';
+            let recommendationTextId = '';
+
+            // Ocultar cualquier recomendación previa y mostrar el spinner
+            document.querySelectorAll('.ai-recommendation-section').forEach(section => {
+                section.classList.remove('show');
+            });
+            document.querySelectorAll('.loading-spinner').forEach(spinner => {
+                spinner.classList.remove('show');
+            });
+
+            switch (calculatorType) {
+                case 'conductos':
+                    const caudal1 = parseFloat(document.getElementById('caudal1').value);
+                    const altura1 = parseFloat(document.getElementById('altura1').value);
+                    const seccionAdaptada1 = document.getElementById('seccionAdaptada1').textContent;
+                    const velocidadReal1 = document.getElementById('velocidadReal1').textContent;
+                    prompt = `Basado en un caudal de aire de ${caudal1} m³/h, una altura de conducto de ${altura1} mm, una sección adaptada de ${seccionAdaptada1} mm, y una velocidad real de ${velocidadReal1} m/s, ¿qué tipo de sistema HVAC o componentes de conductos recomendarías y por qué? Sé conciso y profesional, explicando brevemente la razón.`;
+                    loadingSpinnerId = 'loading1';
+                    recommendationSectionId = 'aiRecommendation1';
+                    recommendationTextId = 'aiRecommendationText1';
+                    break;
+                case 'caudal':
+                    const altura2 = parseFloat(document.getElementById('altura2').value);
+                    const anchura2 = parseFloat(document.getElementById('anchura2').value);
+                    const perdida2 = parseFloat(document.getElementById('perdida2').value);
+                    const caudalMax = document.getElementById('caudalMax').textContent;
+                    const velocidad2 = document.getElementById('velocidad2').textContent;
+                    prompt = `Dado un conducto con altura de ${altura2} mm, anchura de ${anchura2} mm, una pérdida de carga de ${perdida2} mmca/m, un caudal máximo de ${caudalMax} m³/h y una velocidad de ${velocidad2} m/s, ¿qué tipo de sistema HVAC sería adecuado para estas condiciones? Proporciona una explicación breve y profesional.`;
+                    loadingSpinnerId = 'loading2';
+                    recommendationSectionId = 'aiRecommendation2';
+                    recommendationTextId = 'aiRecommendationText2';
+                    break;
+                case 'tuberias':
+                    const caudal3 = parseFloat(document.getElementById('caudal3').value);
+                    const perdida3 = parseFloat(document.getElementById('perdida3').value);
+                    const diametroAquatherm = document.getElementById('diametroAquatherm').textContent;
+                    const velocidadReal3 = document.getElementById('velocidadReal3').textContent;
+                    prompt = `Para un caudal de agua de ${caudal3} l/h, una pérdida de carga de ${perdida3} mmca/m, un diámetro Aquatherm nominal de ${diametroAquatherm} mm y una velocidad real de ${velocidadReal3} m/s, ¿qué tipo de sistema de tuberías PPR o aplicación recomendarías? Sé conciso y profesional, explicando brevemente la razón.`;
+                    loadingSpinnerId = 'loading3';
+                    recommendationSectionId = 'aiRecommendation3';
+                    recommendationTextId = 'aiRecommendationText3';
+                    break;
+                default:
+                    showAlert('Tipo de calculadora no reconocido para la recomendación.');
+                    return;
+            }
+
+            document.getElementById(loadingSpinnerId).classList.add('show');
+            document.getElementById(recommendationTextId).textContent = ''; // Limpiar contenido anterior
+
+            try {
+                let chatHistory = [];
+                chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+                const payload = { contents: chatHistory };
+                const apiKey = ""; // La clave API se proporciona en tiempo de ejecución por Canvas
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const text = result.candidates[0].content.parts[0].text;
+                    document.getElementById(recommendationTextId).textContent = text;
+                    document.getElementById(recommendationSectionId).classList.add('show');
+                } else {
+                    showAlert('No se pudo obtener una recomendación de IA. Inténtelo de nuevo.');
+                    console.error('Estructura de respuesta inesperada:', result);
+                }
+            } catch (error) {
+                showAlert('Error al conectar con la IA. Por favor, revise su conexión o intente más tarde.');
+                console.error('Error al llamar a la API de Gemini:', error);
+            } finally {
+                document.getElementById(loadingSpinnerId).classList.remove('show');
+                // Scroll suave hacia la recomendación
+                setTimeout(() => {
+                    document.getElementById(recommendationSectionId).scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'nearest' 
+                    });
+                }, 100);
+            }
+        }
+
+        // Mostrar el menú al cargar la página
+        document.addEventListener('DOMContentLoaded', showMenu);
+
+    </script>
+</body>
+</html>
