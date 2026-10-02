@@ -94,7 +94,7 @@
   .pildora{
     display:flex;align-items:center;gap:7px;padding:9px 10px;border-radius:14px;
     cursor:grab;font-weight:800;font-size:13px;line-height:1.15;color:#3a2d6b;
-    border:2px solid rgba(0,0,0,.05);user-select:none;
+    border:2px solid rgba(0,0,0,.05);user-select:none;font-family:inherit;text-align:left;
     transition:transform .1s ease,box-shadow .1s ease;
     overflow-wrap:anywhere;word-break:break-word;
   }
@@ -277,6 +277,57 @@
     .grid{grid-template-columns:70px repeat(7,minmax(120px,1fr));}
   }
 
+  /* ====== VISTA MÓVIL (SOLO UN DÍA) ====== */
+  .vista-dia{display:none;}
+  .dia-nav{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    background:#fff;border-radius:18px;padding:10px 12px;box-shadow:var(--sombra);margin-bottom:12px;
+  }
+  .dia-flecha{
+    border:none;background:linear-gradient(135deg,var(--violeta),var(--rosa));color:#fff;
+    width:48px;height:48px;border-radius:14px;font-size:26px;font-weight:800;cursor:pointer;line-height:1;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 4px 10px rgba(0,0,0,.15);
+  }
+  .dia-flecha:active{transform:scale(.94);}
+  .dia-nav-info{display:flex;flex-direction:column;align-items:center;gap:2px;}
+  .dia-nav-nombre{font-family:'Fredoka',sans-serif;font-weight:700;font-size:24px;color:var(--violeta);}
+  .dia-nav-hoy{
+    font-size:11px;font-weight:800;color:#fff;background:var(--verde);
+    padding:2px 10px;border-radius:999px;letter-spacing:.5px;
+  }
+  .dia-acciones{margin-bottom:12px;}
+  .dia-franja{background:#fff;border-radius:18px;margin-bottom:14px;box-shadow:var(--sombra);overflow:hidden;}
+  .dia-franja-cab{
+    color:#fff;padding:11px 15px;display:flex;align-items:center;justify-content:space-between;
+    font-family:'Fredoka',sans-serif;font-weight:600;font-size:18px;
+  }
+  .dia-franja-cab small{font-size:12px;font-weight:700;opacity:.92;}
+  .dia-franja-body{padding:11px;display:flex;flex-direction:column;gap:9px;}
+  .dia-franja-body .tarjeta{cursor:default;}
+  .dia-franja-body .t-texto{font-size:15px;}
+  .dia-franja-body .t-emoji{font-size:22px;}
+  .dia-vacio{color:#c9beff;font-weight:800;text-align:center;padding:6px;font-family:'Fredoka',sans-serif;}
+  .dia-add{
+    border:2.5px dashed #d8ccff;background:#faf8ff;color:var(--violeta);border-radius:14px;
+    padding:11px;font-family:'Fredoka',sans-serif;font-weight:600;font-size:15px;cursor:pointer;
+  }
+  .dia-add:active{background:#efe9ff;}
+
+  @media (max-width:640px){
+    .toolbar{padding:12px 14px;gap:8px;}
+    .toolbar .marca{margin-right:0;width:100%;}
+    .toolbar h1{font-size:20px;}
+    .toolbar .btn{font-size:13px;padding:9px 12px;flex:1 1 auto;justify-content:center;}
+    .contenedor{padding:12px;}
+    .banco{display:none;}              /* en el móvil usamos el menú deslizable */
+    .cal-cabecera{margin-bottom:10px;}
+    .cal-cabecera .leyenda{display:none;}
+    .cal-cabecera .nombre-plan{min-width:0;width:100%;font-size:19px;text-align:center;}
+    #grid{display:none;}               /* ocultamos la rejilla de 7 días */
+    .vista-dia{display:block;}          /* mostramos solo el día */
+    .ipad-banco{width:92vw;}
+  }
+
   /* ====== VISTA IPAD ====== */
   .vista-ipad{
     position:fixed;inset:0;z-index:150;display:none;
@@ -303,6 +354,20 @@
     width:1194px;height:834px;background:var(--fondo);border-radius:16px;overflow:hidden;
     padding:16px;display:flex;flex-direction:column;
   }
+
+  /* Menú de actividades dentro de la vista iPad */
+  .ipad-banco{
+    position:fixed;top:0;left:0;height:100%;width:310px;max-width:86vw;z-index:155;
+    background:#fff;box-shadow:0 0 50px rgba(0,0,0,.45);
+    transform:translateX(-106%);transition:transform .28s ease;
+    display:flex;flex-direction:column;padding:16px;overflow-y:auto;
+  }
+  .ipad-banco.abierto{transform:translateX(0);}
+  .ipad-banco-cab{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+  .ipad-banco-cab h3{margin:0;color:var(--violeta);font-size:21px;font-family:'Fredoka',sans-serif;}
+  #btnIpadBancoCerrar{border:none;background:#f1ecff;color:var(--violeta);width:36px;height:36px;
+    border-radius:11px;font-size:16px;font-weight:800;cursor:pointer;}
+  #btnIpadBancoCerrar:hover{background:#e6ddff;}
 
   /* El calendario ocupa toda la pantalla del iPad */
   .ipad-pantalla .calendario-wrap{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;}
@@ -393,6 +458,22 @@
         <span class="leyenda">💡 Clic = seleccionar · Clic derecho = menú · Doble clic = editar</span>
       </div>
       <div class="grid" id="grid"></div>
+
+      <!-- VISTA MÓVIL: solo el día seleccionado (por defecto, hoy) -->
+      <section class="vista-dia" id="vistaDia">
+        <div class="dia-nav">
+          <button class="dia-flecha" id="diaPrev" aria-label="Día anterior">‹</button>
+          <div class="dia-nav-info">
+            <span class="dia-nav-nombre" id="diaNombre">Lunes</span>
+            <span class="dia-nav-hoy" id="diaHoy">HOY</span>
+          </div>
+          <button class="dia-flecha" id="diaNext" aria-label="Día siguiente">›</button>
+        </div>
+        <div class="dia-acciones">
+          <button class="btn-nueva" id="diaBanco" style="width:100%;">🎒 Elegir actividad</button>
+        </div>
+        <div id="diaFranjas"></div>
+      </section>
     </main>
   </div>
 
@@ -439,10 +520,20 @@
   <!-- VISTA IPAD -->
   <div class="vista-ipad" id="vistaIpad">
     <div class="ipad-controles">
-      <button class="btn btn-nueva" id="btnIpadNueva" style="box-shadow:0 5px 14px rgba(0,0,0,.2);">➕ Nueva actividad</button>
+      <button class="btn btn-claro" id="btnIpadBanco">🎒 Actividades</button>
+      <button class="btn btn-nueva" id="btnIpadNueva" style="box-shadow:0 5px 14px rgba(0,0,0,.2);">➕ Nueva</button>
       <button class="btn btn-imprimir" id="btnIpadImprimir">🖨️ Imprimir A3</button>
       <button class="btn btn-ghost" id="btnIpadCerrar">✕ Salir</button>
     </div>
+
+    <!-- Menú de actividades por defecto (dentro de la vista iPad) -->
+    <aside class="ipad-banco" id="ipadBanco">
+      <div class="ipad-banco-cab">
+        <h3>🎒 Actividades</h3>
+        <button id="btnIpadBancoCerrar" title="Cerrar">✕</button>
+      </div>
+      <div id="ipadBancoLista"></div>
+    </aside>
     <div class="ipad-marco" id="ipadMarco">
       <div class="ipad-camara"></div>
       <div class="ipad-pantalla" id="ipadPantalla">
@@ -479,35 +570,31 @@
     "#c9b8ff","#ffc2d1","#9ff0ec","#fff0b8","#b6f0c4","#ffcf8f",
     "#ffb3c7","#a8d8ff","#d4b8ff","#ffd9a3","#b8ffd9","#ffb8e6"
   ];
-  const EMOJIS = ["🏐","🏊","⚽","🤸","🚴","📚","✏️","🧮","🌍","🎹","🎨","🦷","🛏️","🚿","🍳","🍽️","🎮","📖","📺","🧩","🐶","🌳","💃","🎵","⭐","❤️","🧁","🏃","🎾","🛁","💤","🧹"];
+  const EMOJIS = ["🏐","🏊","⚽","🤸","🚴","📚","✏️","🧮","🌍","🎹","🎨","🦷","👕","🧺","👩‍🏫","📒","🛏️","🚿","🍳","🍽️","🎮","📖","📺","🧩","🐶","🌳","💃","🎵","⭐","❤️","🧁","🏃","🎾","🛁","💤","🧹"];
 
   // Banco de actividades por categoría
   const BANCO = [
-    {cat:"🏐 Deportes", items:[
-      {nombre:"Voley",emoji:"🏐",color:"#ffc2d1"},
-      {nombre:"Natación",emoji:"🏊",color:"#9ff0ec"},
-      {nombre:"Bici",emoji:"🚴",color:"#b6f0c4"},
-      {nombre:"Gimnasia",emoji:"🤸",color:"#ffd9a3"}
-    ]},
-    {cat:"📚 Estudios", items:[
-      {nombre:"Clases particulares",emoji:"🎹",color:"#c9b8ff"},
-      {nombre:"Deberes",emoji:"✏️",color:"#fff0b8"},
-      {nombre:"Idiomas",emoji:"🌍",color:"#a8d8ff"},
-      {nombre:"Leer un rato",emoji:"📖",color:"#ffcf8f"}
-    ]},
     {cat:"🦷 Rutinas diarias", items:[
-      {nombre:"Lavarse los dientes",emoji:"🦷",color:"#9ff0ec"},
-      {nombre:"Ordenar la habitación",emoji:"🧹",color:"#d4b8ff"},
-      {nombre:"Ducha",emoji:"🚿",color:"#a8d8ff"},
       {nombre:"Desayuno",emoji:"🍳",color:"#fff0b8"},
-      {nombre:"Cena",emoji:"🍽️",color:"#ffd9a3"},
+      {nombre:"Lavarse los dientes",emoji:"🦷",color:"#9ff0ec"},
+      {nombre:"Vestirse",emoji:"👕",color:"#a8d8ff"},
+      {nombre:"Ducharse",emoji:"🚿",color:"#b8ffd9"},
+      {nombre:"Recoger la ropa",emoji:"🧺",color:"#ffd9a3"},
+      {nombre:"Cena",emoji:"🍽️",color:"#ffcf8f"},
       {nombre:"A dormir",emoji:"💤",color:"#c9b8ff"}
     ]},
+    {cat:"📚 Estudios", items:[
+      {nombre:"Clases Natalia",emoji:"👩‍🏫",color:"#d4b8ff"},
+      {nombre:"Clases Adriana",emoji:"👩‍🏫",color:"#ffb8e6"},
+      {nombre:"Hacer la agenda",emoji:"📒",color:"#fff0b8"},
+      {nombre:"Leer 15 minutos",emoji:"📖",color:"#ffcf8f"}
+    ]},
+    {cat:"🏐 Deportes", items:[
+      {nombre:"Volley",emoji:"🏐",color:"#ffc2d1"}
+    ]},
     {cat:"🎮 Ocio", items:[
-      {nombre:"Tiempo de juego",emoji:"🎮",color:"#b6f0c4"},
-      {nombre:"Ver serie o peli",emoji:"📺",color:"#ffc2d1"},
-      {nombre:"Dibujar",emoji:"🎨",color:"#ffb8e6"},
-      {nombre:"Música",emoji:"🎵",color:"#d4b8ff"}
+      {nombre:"A jugar",emoji:"🎮",color:"#b6f0c4"},
+      {nombre:"Ver la tele",emoji:"📺",color:"#ffc2d1"}
     ]}
   ];
 
@@ -521,6 +608,8 @@
   let modalContexto = null;  // {modo:'nueva'|'editar'|'banco', ...}
   let emojiSel = EMOJIS[0], colorSel = COLORES[0];
   let ubiDia = 0, ubiFranja = "manana";   // día y franja elegidos en el modal
+  function diaDeHoy(){ return (new Date().getDay()+6)%7; } // Lunes=0 … Domingo=6
+  let diaVista = diaDeHoy();               // día mostrado en la vista móvil
 
   function celdaClave(dia,franja){return dia+"_"+franja;}
   function uid(){return "t"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
@@ -599,7 +688,36 @@
         grid.appendChild(celda);
       });
     });
+    renderDia();   // mantiene sincronizada la vista móvil (solo un día)
   }
+
+  // ===== Vista móvil: un solo día =====
+  function renderDia(){
+    const cont=document.getElementById("diaFranjas");
+    if(!cont) return;
+    document.getElementById("diaNombre").textContent=DIAS[diaVista].nombre;
+    document.getElementById("diaHoy").style.display = (diaVista===diaDeHoy())? "" : "none";
+    cont.innerHTML="";
+    FRANJAS.forEach(fr=>{
+      const sec=document.createElement("div"); sec.className="dia-franja";
+      const cab=document.createElement("div"); cab.className="dia-franja-cab"; cab.style.background=fr.color;
+      cab.innerHTML=`<span>${fr.ico} ${fr.nombre}</span><small>${fr.rango}</small>`;
+      sec.appendChild(cab);
+      const cuerpo=document.createElement("div"); cuerpo.className="dia-franja-body";
+      const lista=estado.tareas[celdaClave(diaVista,fr.clave)]||[];
+      if(lista.length===0){
+        const v=document.createElement("div"); v.className="dia-vacio"; v.textContent="Nada todavía 🌈";
+        cuerpo.appendChild(v);
+      }
+      lista.forEach(t=> cuerpo.appendChild(crearTarjeta(t,diaVista,fr.clave)) );
+      const add=document.createElement("button"); add.className="dia-add"; add.textContent="➕ Añadir aquí";
+      add.addEventListener("click",()=>abrirNueva(diaVista,fr.clave));
+      cuerpo.appendChild(add);
+      sec.appendChild(cuerpo);
+      cont.appendChild(sec);
+    });
+  }
+  function cambiarDia(delta){ diaVista=(diaVista+delta+7)%7; renderDia(); }
 
   function crearTarjeta(t,dia,franja){
     const el=document.createElement("div");
@@ -866,8 +984,21 @@
     document.getElementById("inpNombre").value="";
     emojiSel=EMOJIS[0]; colorSel=COLORES[0];
     preseleccionar(emojiSel,colorSel);
-    const d = (typeof dia==="number")? dia : (seleccion? seleccion.dia : 0);
+    const d = (typeof dia==="number")? dia : (seleccion? seleccion.dia : diaVista);
     const f = franja || (seleccion? seleccion.franja : "manana");
+    preUbicacion(d,f);
+    document.getElementById("campoUbicacion").style.display="";
+    abrirModal();
+  }
+  function abrirNuevaPlantilla(item){
+    cerrarIpadBanco();
+    modalContexto={modo:"nueva"};
+    document.getElementById("modalTitulo").textContent="✨ Añadir actividad";
+    document.getElementById("inpNombre").value=item.nombre;
+    emojiSel=item.emoji; colorSel=item.color;
+    preseleccionar(emojiSel,colorSel);
+    const d = seleccion? seleccion.dia : diaVista;
+    const f = seleccion? seleccion.franja : "manana";
     preUbicacion(d,f);
     document.getElementById("campoUbicacion").style.display="";
     abrirModal();
@@ -997,8 +1128,39 @@
     if(marcadorCal.parentNode) marcadorCal.parentNode.insertBefore(calWrap, marcadorCal);
     vistaIpad.classList.remove("abierto");
     ipadMarco.style.transform="";
+    cerrarIpadBanco();
     ipadAbierto=false;
   }
+
+  // Menú de actividades por defecto dentro del iPad (tocar para añadir)
+  function renderIpadBanco(){
+    const cont=document.getElementById("ipadBancoLista");
+    cont.innerHTML="";
+    const hint=document.createElement("p");
+    hint.className="pista";
+    hint.textContent="Toca una actividad para añadirla y elegir el día y el momento. 👇";
+    cont.appendChild(hint);
+    BANCO.forEach(cat=>{
+      const h=document.createElement("div"); h.className="cat-titulo"; h.textContent=cat.cat;
+      cont.appendChild(h);
+      const g=document.createElement("div"); g.className="banco-grid";
+      cat.items.forEach(it=>{
+        const p=document.createElement("button"); p.type="button"; p.className="pildora"; p.style.background=it.color;
+        p.style.cursor="pointer";
+        p.innerHTML=`<span class="emo">${it.emoji}</span><span class="txt">${escapar(it.nombre)}</span>`;
+        p.addEventListener("click",()=>abrirNuevaPlantilla(it));
+        g.appendChild(p);
+      });
+      cont.appendChild(g);
+    });
+    const nb=document.createElement("button");
+    nb.className="btn-nueva"; nb.style.width="100%"; nb.style.marginTop="14px";
+    nb.textContent="➕ Nueva personalizada";
+    nb.addEventListener("click",()=>{ cerrarIpadBanco(); abrirNueva(); });
+    cont.appendChild(nb);
+  }
+  function abrirIpadBanco(){ document.getElementById("ipadBanco").classList.add("abierto"); }
+  function cerrarIpadBanco(){ document.getElementById("ipadBanco").classList.remove("abierto"); }
 
   /* ============ TECLADO ============ */
   document.addEventListener("keydown",(e)=>{
@@ -1029,6 +1191,11 @@
   document.getElementById("btnIpad").addEventListener("click",abrirIpad);
   document.getElementById("btnIpadCerrar").addEventListener("click",cerrarIpad);
   document.getElementById("btnIpadNueva").addEventListener("click",()=>abrirNueva());
+  document.getElementById("btnIpadBanco").addEventListener("click",abrirIpadBanco);
+  document.getElementById("btnIpadBancoCerrar").addEventListener("click",cerrarIpadBanco);
+  document.getElementById("diaPrev").addEventListener("click",()=>cambiarDia(-1));
+  document.getElementById("diaNext").addEventListener("click",()=>cambiarDia(1));
+  document.getElementById("diaBanco").addEventListener("click",abrirIpadBanco);
   document.getElementById("btnIpadImprimir").addEventListener("click",()=>{ cerrarIpad(); imprimir(); });
   document.getElementById("btnDeshacer").addEventListener("click",deshacer);
   document.getElementById("btnNueva").addEventListener("click",abrirNueva);
@@ -1049,6 +1216,7 @@
     nombreInp.value = estado.nombre || nombreInp.value;
     construirModalSelectores();
     renderBanco();
+    renderIpadBanco();
     render();
     actualizarBotonDeshacer();
     actualizarMenuPegar();
