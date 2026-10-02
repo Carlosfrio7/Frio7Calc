@@ -271,6 +271,41 @@
     .grid{grid-template-columns:70px repeat(7,minmax(120px,1fr));}
   }
 
+  /* ====== VISTA IPAD ====== */
+  .vista-ipad{
+    position:fixed;inset:0;z-index:150;display:none;
+    align-items:center;justify-content:center;overflow:hidden;
+    background:radial-gradient(circle at 50% 40%,#3a2d6b,#160f33 75%);
+  }
+  .vista-ipad.abierto{display:flex;}
+  .ipad-controles{
+    position:fixed;top:16px;left:50%;transform:translateX(-50%);
+    display:flex;gap:10px;z-index:160;
+  }
+  .ipad-marco{
+    position:relative;background:linear-gradient(145deg,#2b2b33,#15151a);
+    padding:18px;border-radius:40px;
+    box-shadow:0 0 0 3px #3a3a42,0 34px 80px rgba(0,0,0,.6);
+    transform-origin:center center;
+  }
+  .ipad-camara{
+    position:absolute;top:8px;left:50%;transform:translateX(-50%);
+    width:8px;height:8px;border-radius:50%;background:#44444e;
+    box-shadow:inset 0 0 0 2px #2a2a30;z-index:2;
+  }
+  .ipad-pantalla{
+    width:1194px;height:834px;background:var(--fondo);border-radius:16px;overflow:hidden;
+    padding:16px;display:flex;flex-direction:column;
+  }
+
+  /* El calendario ocupa toda la pantalla del iPad */
+  .ipad-pantalla .calendario-wrap{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;}
+  .ipad-pantalla .cal-cabecera{justify-content:center;margin-bottom:12px;}
+  .ipad-pantalla .cal-cabecera .leyenda{display:none;}
+  .ipad-pantalla .nombre-plan{text-align:center;font-size:26px;}
+  .ipad-pantalla .grid{flex:1 1 auto;min-height:0;grid-template-rows:auto repeat(3,1fr);}
+  .ipad-pantalla .celda{min-height:0;overflow-y:auto;}
+
   /* ====== IMPRESIÓN A3 HORIZONTAL ====== */
   @page{size:A3 landscape;margin:10mm;}
   @media print{
@@ -279,7 +314,7 @@
       width:100%;height:auto;
     }
     .toolbar,.banco,.menu-ctx,.modal-fondo,.toast,.t-menu-btn,.btn-hecho,
-    .cal-cabecera .leyenda,.celda-vacia-pista,#confeti{display:none !important;}
+    .cal-cabecera .leyenda,.celda-vacia-pista,#confeti,.ipad-controles{display:none !important;}
 
     .contenedor{display:block;padding:0;max-width:none;margin:0;}
     .calendario-wrap{width:100%;}
@@ -329,6 +364,7 @@
     </div>
     <button class="btn btn-ghost" id="btnDeshacer" title="Deshacer (Ctrl+Z)">↩️ Deshacer</button>
     <button class="btn btn-claro" id="btnBorrarTodo">🧹 Vaciar</button>
+    <button class="btn btn-claro" id="btnIpad">📱 Vista iPad</button>
     <button class="btn btn-imprimir" id="btnImprimir">🖨️ Imprimir en A3</button>
   </header>
 
@@ -384,6 +420,20 @@
       <div class="modal-acciones">
         <button class="btn btn-cancelar" id="btnCancelar">Cancelar</button>
         <button class="btn btn-guardar" id="btnGuardarAct">💾 Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- VISTA IPAD -->
+  <div class="vista-ipad" id="vistaIpad">
+    <div class="ipad-controles">
+      <button class="btn btn-imprimir" id="btnIpadImprimir">🖨️ Imprimir A3</button>
+      <button class="btn btn-ghost" id="btnIpadCerrar">✕ Salir</button>
+    </div>
+    <div class="ipad-marco" id="ipadMarco">
+      <div class="ipad-camara"></div>
+      <div class="ipad-pantalla" id="ipadPantalla">
+        <!-- aquí se inserta el calendario -->
       </div>
     </div>
   </div>
@@ -811,7 +861,7 @@
   const canvas=document.getElementById("confeti"), ctx=canvas.getContext("2d");
   let particulas=[], animando=false;
   function ajustarCanvas(){ canvas.width=window.innerWidth; canvas.height=window.innerHeight; }
-  ajustarCanvas(); window.addEventListener("resize",()=>{ajustarCanvas(); ajustarGridAltura();});
+  ajustarCanvas(); window.addEventListener("resize",()=>{ajustarCanvas(); ajustarGridAltura(); escalarIpad();});
   const COLORES_CONFETI=["#7c5cff","#2ec5c0","#ff7a9c","#ffcf3f","#5ed67a","#ff9f45","#ffb8e6"];
   function lanzarConfeti(x,y,cantidad){
     cantidad=cantidad||30;
@@ -854,6 +904,43 @@
   // Llenar la rejilla a lo alto del folio se gestiona con grid-template-rows en @media print.
   function ajustarGridAltura(){ /* reservado para ajustes dinámicos si se necesitan */ }
 
+  /* ============ VISTA IPAD ============ */
+  const vistaIpad=document.getElementById("vistaIpad");
+  const ipadMarco=document.getElementById("ipadMarco");
+  const ipadPantalla=document.getElementById("ipadPantalla");
+  const calWrap=document.querySelector(".calendario-wrap");
+  const marcadorCal=document.createComment("pos-calendario");
+  let ipadAbierto=false;
+
+  function escalarIpad(){
+    if(!ipadAbierto) return;
+    const fw = 1194;
+    const fh = 834;
+    const marcoW = fw + 36;  // +padding del marco (18*2)
+    const marcoH = fh + 36;
+    const dispW = window.innerWidth  - 40;
+    const dispH = window.innerHeight - 90;  // deja sitio a los controles
+    const s = Math.min(dispW/marcoW, dispH/marcoH, 1.3);
+    ipadMarco.style.transform = "scale("+s+")";
+  }
+  function abrirIpad(){
+    cerrarMenu();
+    // mueve el calendario dentro de la pantalla del iPad
+    calWrap.parentNode.insertBefore(marcadorCal, calWrap);
+    ipadPantalla.appendChild(calWrap);
+    vistaIpad.classList.add("abierto");
+    ipadAbierto=true;
+    escalarIpad();
+  }
+  function cerrarIpad(){
+    if(!ipadAbierto) return;
+    // devuelve el calendario a su sitio original
+    if(marcadorCal.parentNode) marcadorCal.parentNode.insertBefore(calWrap, marcadorCal);
+    vistaIpad.classList.remove("abierto");
+    ipadMarco.style.transform="";
+    ipadAbierto=false;
+  }
+
   /* ============ TECLADO ============ */
   document.addEventListener("keydown",(e)=>{
     // no interferir mientras se escribe en inputs
@@ -865,7 +952,7 @@
       if(e.key==="Enter" && modalFondo.classList.contains("abierto") && e.target.id==="inpNombre"){ e.preventDefault(); guardarModal(); }
       return;
     }
-    if(e.key==="Escape"){ cerrarMenu(); seleccion=null; document.querySelectorAll(".tarjeta.seleccionada").forEach(n=>n.classList.remove("seleccionada")); return; }
+    if(e.key==="Escape"){ cerrarMenu(); if(ipadAbierto) cerrarIpad(); seleccion=null; document.querySelectorAll(".tarjeta.seleccionada").forEach(n=>n.classList.remove("seleccionada")); return; }
 
     if(cmd && e.key.toLowerCase()==="z"){ e.preventDefault(); deshacer(); return; }
 
@@ -880,6 +967,9 @@
 
   /* ============ EVENTOS UI ============ */
   document.getElementById("btnImprimir").addEventListener("click",imprimir);
+  document.getElementById("btnIpad").addEventListener("click",abrirIpad);
+  document.getElementById("btnIpadCerrar").addEventListener("click",cerrarIpad);
+  document.getElementById("btnIpadImprimir").addEventListener("click",()=>{ cerrarIpad(); imprimir(); });
   document.getElementById("btnDeshacer").addEventListener("click",deshacer);
   document.getElementById("btnNueva").addEventListener("click",abrirNueva);
   document.getElementById("btnGuardarAct").addEventListener("click",guardarModal);
