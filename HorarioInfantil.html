@@ -327,13 +327,15 @@
     .toolbar .marca{margin-right:0;width:100%;}
     .toolbar h1{font-size:20px;}
     .toolbar .btn{font-size:13px;padding:9px 12px;flex:1 1 auto;justify-content:center;}
-    .contenedor{padding:12px;}
+    /* el contenido ocupa todo el ancho y queda centrado */
+    .contenedor{padding:12px;align-items:stretch;width:100%;}
+    .calendario-wrap{width:100%;flex:1 1 auto;}
     .banco{display:none;}              /* en el móvil usamos el menú deslizable */
     .cal-cabecera{margin-bottom:10px;}
     .cal-cabecera .leyenda{display:none;}
     .cal-cabecera .nombre-plan{min-width:0;width:100%;font-size:19px;text-align:center;}
     #grid{display:none;}               /* ocultamos la rejilla de 7 días */
-    .vista-dia{display:block;}          /* mostramos solo el día */
+    .vista-dia{display:block;width:100%;}   /* mostramos solo el día, a todo el ancho */
     .ipad-banco{width:92vw;}
   }
 
