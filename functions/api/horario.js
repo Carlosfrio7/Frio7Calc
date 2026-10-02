@@ -1,6 +1,7 @@
 // Cloudflare Pages Function — guarda/lee el horario en un KV namespace.
 // Ruta pública: /api/horario?code=<codigo-familiar>
 // Requiere un binding de KV llamado HORARIO_KV en el proyecto de Pages.
+// v1.0 — sincronización activada.
 
 const CORS = {
   "access-control-allow-origin": "*",
