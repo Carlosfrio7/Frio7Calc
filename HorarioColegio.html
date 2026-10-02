@@ -119,6 +119,29 @@
   .celda:hover .c-x,.asig-cel:active .c-x{opacity:1;}
   .celda-vacia-pista{margin:auto;color:#c0d0ea;font-size:11px;font-weight:800;font-family:'Fredoka',sans-serif;pointer-events:none;}
 
+  /* VISTA MÓVIL (UN DÍA) */
+  .dia-col{display:none;}
+  .dia-nav{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fff;
+    border-radius:16px;padding:9px 12px;box-shadow:var(--sombra);margin-bottom:12px;}
+  .dia-flecha{border:none;background:linear-gradient(135deg,var(--azul),var(--azul-claro));color:#fff;
+    width:46px;height:46px;border-radius:13px;font-size:24px;font-weight:800;cursor:pointer;line-height:1;}
+  .dia-flecha:active{transform:scale(.94);}
+  .dia-nav-nom{font-family:'Fredoka',sans-serif;font-weight:700;font-size:22px;color:var(--azul);}
+  .dc-fila{display:flex;align-items:stretch;gap:9px;margin-bottom:8px;}
+  .dc-hora{flex:0 0 58px;display:flex;align-items:center;justify-content:center;text-align:center;
+    font-weight:800;font-size:11.5px;color:var(--texto-suave);background:#fff;border-radius:12px;
+    box-shadow:var(--sombra);line-height:1.15;}
+  .dc-asig{flex:1 1 auto;border-radius:13px;padding:11px 12px;font-weight:800;color:#17273f;position:relative;
+    display:flex;flex-direction:column;justify-content:center;min-height:50px;box-shadow:var(--sombra);}
+  .dc-asig .dc-cod{font-family:'Fredoka',sans-serif;font-size:18px;line-height:1;}
+  .dc-asig .dc-nom{font-size:12px;opacity:.85;}
+  .dc-asig .dc-x{position:absolute;top:4px;right:5px;border:none;background:rgba(255,255,255,.75);border-radius:8px;
+    width:24px;height:24px;cursor:pointer;font-size:12px;color:#8a2230;}
+  .dc-vacia{flex:1 1 auto;border:2.5px dashed #d4e1f5;border-radius:13px;padding:11px;color:#9fb3d0;font-weight:800;
+    text-align:center;display:flex;align-items:center;justify-content:center;min-height:50px;background:#fafcff;cursor:pointer;}
+  .dc-descanso{background:linear-gradient(90deg,#fff3c9,#ffe29a);border-radius:12px;padding:9px;text-align:center;
+    font-family:'Fredoka',sans-serif;font-weight:600;color:#7a5a12;margin-bottom:8px;}
+
   /* MODAL */
   .modal-fondo{position:fixed;inset:0;background:rgba(34,58,99,.45);backdrop-filter:blur(3px);display:none;
     align-items:center;justify-content:center;z-index:200;padding:16px;}
@@ -156,6 +179,10 @@
   @media (max-width:640px){
     .toolbar h1{font-size:20px;}
     .toolbar .btn,.perfil-tab{font-size:13px;}
+    .grid{display:none;}            /* ocultamos la rejilla de 5 días */
+    .cal-wrap{overflow:visible;width:100%;}
+    .dia-col{display:block;}         /* mostramos un día */
+    .banco{order:2;}
   }
 
   /* IMPRESIÓN A3 */
@@ -202,6 +229,15 @@
 
     <main class="cal-wrap">
       <div class="grid" id="grid"></div>
+      <!-- VISTA MÓVIL: un solo día -->
+      <section class="dia-col" id="diaCol">
+        <div class="dia-nav">
+          <button class="dia-flecha" id="dcPrev" aria-label="Día anterior">‹</button>
+          <div class="dia-nav-nom" id="dcNom">Lunes</div>
+          <button class="dia-flecha" id="dcNext" aria-label="Día siguiente">›</button>
+        </div>
+        <div id="dcLista"></div>
+      </section>
     </main>
   </div>
 
@@ -298,6 +334,7 @@
     perfiles: { lara:{cells:Object.assign({},LARA)}, carli:{cells:Object.assign({},CARLI)} }
   };
   let perfil = "lara";
+  let diaCol = (function(){ const d=(new Date().getDay()+6)%7; return d>4?0:d; })(); // día en móvil (Lun..Vie)
   let tizaSel = null;       // código de asignatura seleccionada para colocar tocando
   let colorSel = COLORES[0];
   let arrastre = null;      // {cod} desde banco  |  {desde:"d_s"} mover
@@ -349,7 +386,36 @@
         grid.appendChild(celda);
       });
     });
+    renderDiaCol();
   }
+
+  // Vista de un solo día (móvil)
+  function renderDiaCol(){
+    const cont=document.getElementById("dcLista"); if(!cont) return;
+    document.getElementById("dcNom").textContent=DIAS[diaCol].n;
+    cont.innerHTML="";
+    FILAS.forEach(f=>{
+      if(f.tipo==="descanso"){ const d=document.createElement("div"); d.className="dc-descanso"; d.textContent=f.txt+" · "+f.hora; cont.appendChild(d); return; }
+      const key=diaCol+"_"+f.idx;
+      const fila=document.createElement("div"); fila.className="dc-fila";
+      const h=document.createElement("div"); h.className="dc-hora"; h.innerHTML=f.hora.replace(" – ","<br>"); fila.appendChild(h);
+      const cod=cells()[key];
+      if(cod && asigPorCod(cod)){
+        const a=asigPorCod(cod);
+        const el=document.createElement("div"); el.className="dc-asig"; el.style.background=a.color;
+        el.innerHTML=`<span class="dc-cod">${escap(a.cod)}</span><span class="dc-nom">${escap(a.nom)}</span><button class="dc-x" title="Quitar">✕</button>`;
+        el.querySelector(".dc-x").addEventListener("click",(e)=>{ e.stopPropagation(); delete cells()[key]; guardar(); render(); });
+        el.addEventListener("click",()=>{ if(tizaSel){ colocar(key,tizaSel); toast("Colocada "+tizaSel+" ✏️"); } });
+        fila.appendChild(el);
+      } else {
+        const v=document.createElement("div"); v.className="dc-vacia"; v.textContent = tizaSel? ("Toca para poner "+tizaSel) : "—";
+        v.addEventListener("click",()=>{ if(tizaSel){ colocar(key,tizaSel); toast("Colocada "+tizaSel+" ✏️"); } });
+        fila.appendChild(v);
+      }
+      cont.appendChild(fila);
+    });
+  }
+  function cambiarDiaCol(d){ diaCol=(diaCol+d+5)%5; renderDiaCol(); }
 
   function crearAsigCel(cod,key){
     const a=asigPorCod(cod);
@@ -447,6 +513,8 @@
       estado.perfiles[perfil].cells={}; guardar(); render(); toast("Horario vacío ✨");
     }
   });
+  document.getElementById("dcPrev").addEventListener("click",()=>cambiarDiaCol(-1));
+  document.getElementById("dcNext").addEventListener("click",()=>cambiarDiaCol(1));
   document.addEventListener("keydown",(e)=>{ if(e.key==="Escape"){ cerrarModal(); tizaSel=null; actualizarTiza(); renderBanco(); } });
 
   /* INICIO */
