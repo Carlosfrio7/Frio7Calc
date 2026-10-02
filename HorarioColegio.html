@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Horario del Colegio</title>
+<link rel="icon" type="image/png" href="logo-colegio.png" />
+<link rel="apple-touch-icon" href="logo-colegio.png" />
+<meta name="apple-mobile-web-app-title" content="Colegio" />
+<meta name="theme-color" content="#2b5fb0" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --azul:#2b5fb0;
+    --azul-claro:#5b8fe0;
+    --rojo:#e8303a;
+    --amarillo:#ffcf1f;
+    --fondo:#eef3fb;
+    --texto:#223a63;
+    --texto-suave:#5a6e92;
+    --sombra:0 8px 22px rgba(43,95,176,.16);
+    --sombra-fuerte:0 14px 34px rgba(43,95,176,.26);
+    --radio:20px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:'Nunito',system-ui,sans-serif;color:var(--texto);
+    background:
+      radial-gradient(circle at 10% 10%,#dbe8ff 0,transparent 40%),
+      radial-gradient(circle at 92% 8%,#fff3c9 0,transparent 42%),
+      var(--fondo);
+    min-height:100vh;
+  }
+  h1,h2,h3,.titulo{font-family:'Fredoka',sans-serif;}
+
+  /* BARRA SUPERIOR */
+  .toolbar{
+    display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 20px;
+    background:linear-gradient(120deg,var(--azul),var(--azul-claro));
+    color:#fff;box-shadow:var(--sombra);position:sticky;top:0;z-index:40;
+  }
+  .toolbar .marca{display:flex;align-items:center;gap:12px;margin-right:auto;}
+  .toolbar .logo-img{width:54px;height:54px;border-radius:14px;background:#fff;object-fit:contain;
+    padding:5px;box-shadow:0 3px 10px rgba(0,0,0,.18);flex:0 0 auto;}
+  .toolbar h1{margin:0;font-size:24px;font-weight:700;line-height:1;text-shadow:0 2px 6px rgba(0,0,0,.12);}
+  .toolbar .sub{margin:3px 0 0;font-size:12.5px;font-weight:700;opacity:.92;}
+
+  .btn{font-family:'Fredoka',sans-serif;font-weight:600;font-size:15px;border:none;cursor:pointer;
+    border-radius:14px;padding:10px 16px;display:inline-flex;align-items:center;gap:7px;
+    transition:transform .12s ease,filter .12s ease;box-shadow:0 5px 14px rgba(0,0,0,.14);}
+  .btn:hover{transform:translateY(-2px);filter:brightness(1.05);}
+  .btn-claro{background:#fff;color:var(--azul);}
+  .btn-imprimir{background:var(--amarillo);color:#6b4a00;}
+  .btn-ghost{background:rgba(255,255,255,.2);color:#fff;border:2px solid rgba(255,255,255,.5);box-shadow:none;}
+
+  /* PESTAÑAS DE PERFIL */
+  .perfiles{display:flex;gap:8px;}
+  .perfil-tab{font-family:'Fredoka',sans-serif;font-weight:600;font-size:16px;cursor:pointer;border:none;
+    padding:9px 20px;border-radius:14px 14px 0 0;background:rgba(255,255,255,.28);color:#fff;
+    transition:background .12s ease;}
+  .perfil-tab.activo{background:#fff;color:var(--azul);}
+
+  /* LAYOUT */
+  .contenedor{display:flex;gap:16px;align-items:flex-start;padding:16px;max-width:1500px;margin:0 auto;}
+
+  /* BANCO DE ASIGNATURAS */
+  .banco{flex:0 0 220px;position:sticky;top:92px;background:#fff;border-radius:var(--radio);padding:14px;
+    box-shadow:var(--sombra);max-height:calc(100vh - 110px);overflow-y:auto;}
+  .banco h2{margin:0 0 4px;font-size:18px;color:var(--azul);display:flex;align-items:center;gap:7px;}
+  .banco .pista{font-size:12px;color:var(--texto-suave);margin:0 0 12px;font-weight:700;line-height:1.35;}
+  .asignaturas{display:flex;flex-direction:column;gap:7px;}
+  .asig{display:flex;align-items:center;gap:9px;padding:10px 11px;border-radius:13px;cursor:grab;
+    font-weight:800;color:#1e2e4d;border:2.5px solid rgba(255,255,255,.6);user-select:none;
+    transition:transform .1s ease,box-shadow .1s ease,outline .1s ease;}
+  .asig:hover{transform:translateY(-1px);box-shadow:0 5px 12px rgba(0,0,0,.14);}
+  .asig:active{cursor:grabbing;}
+  .asig.sel{outline:3px solid var(--azul);outline-offset:2px;}
+  .asig .cod{font-family:'Fredoka',sans-serif;font-size:15px;font-weight:700;background:rgba(255,255,255,.55);
+    border-radius:8px;padding:2px 7px;min-width:42px;text-align:center;}
+  .asig .nom{font-size:12.5px;font-weight:800;line-height:1.1;overflow-wrap:anywhere;}
+  .btn-nueva-asig{margin-top:10px;width:100%;background:linear-gradient(120deg,var(--azul),var(--azul-claro));
+    color:#fff;border:none;border-radius:13px;padding:10px;font-family:'Fredoka',sans-serif;font-weight:600;
+    font-size:13.5px;cursor:pointer;}
+  .btn-borrar{margin-top:7px;width:100%;background:#ffe9ec;color:#c0283a;border:none;border-radius:13px;
+    padding:9px;font-family:'Fredoka',sans-serif;font-weight:600;font-size:13px;cursor:pointer;}
+
+  .tiza-aviso{background:#eaf2ff;border:2px dashed var(--azul-claro);border-radius:12px;padding:8px 10px;
+    font-size:12.5px;font-weight:800;color:var(--azul);margin-bottom:10px;display:none;line-height:1.3;}
+  .tiza-aviso.ver{display:block;}
+
+  /* REJILLA */
+  .cal-wrap{flex:1 1 auto;min-width:0;}
+  .grid{display:grid;grid-template-columns:70px repeat(5,minmax(0,1fr));gap:6px;background:#fff;
+    border-radius:var(--radio);padding:10px;box-shadow:var(--sombra);}
+  .esq{border-radius:12px;}
+  .dia-cab{border-radius:12px;padding:10px 4px;text-align:center;color:#fff;font-family:'Fredoka',sans-serif;
+    font-weight:600;font-size:16px;box-shadow:0 3px 8px rgba(0,0,0,.12);}
+  .hora-cab{display:flex;align-items:center;justify-content:center;text-align:center;border-radius:10px;
+    background:#eef3fb;color:var(--texto-suave);font-weight:800;font-size:11px;padding:4px;line-height:1.15;}
+  .fila-descanso{grid-column:1 / -1;display:flex;align-items:center;justify-content:center;gap:8px;
+    background:linear-gradient(90deg,#fff3c9,#ffe29a);border-radius:12px;padding:7px;font-family:'Fredoka',sans-serif;
+    font-weight:600;color:#7a5a12;font-size:14px;}
+  .celda{background:#f7faff;border:2.5px dashed #d4e1f5;border-radius:13px;min-height:62px;padding:4px;
+    display:flex;align-items:stretch;transition:background .1s ease,border-color .1s ease;cursor:pointer;}
+  .celda.drag-over{background:#e4eeff;border-color:var(--azul);border-style:solid;}
+  .celda.vacia:hover{background:#eef4ff;border-color:var(--azul-claro);}
+
+  .asig-cel{position:relative;flex:1 1 auto;border-radius:10px;padding:6px;display:flex;flex-direction:column;
+    justify-content:center;gap:2px;color:#17273f;font-weight:800;box-shadow:0 3px 7px rgba(0,0,0,.1);
+    border:2px solid rgba(255,255,255,.6);animation:pop .22s cubic-bezier(.2,1.1,.4,1);}
+  .asig-cel .c-cod{font-family:'Fredoka',sans-serif;font-size:16px;font-weight:700;line-height:1;}
+  .asig-cel .c-nom{font-size:10.5px;font-weight:800;line-height:1.1;opacity:.85;overflow-wrap:anywhere;}
+  .asig-cel .c-x{position:absolute;top:2px;right:2px;width:20px;height:20px;border:none;border-radius:7px;
+    background:rgba(255,255,255,.75);cursor:pointer;font-size:12px;color:#8a2230;display:flex;align-items:center;
+    justify-content:center;opacity:0;transition:opacity .1s ease;}
+  .celda:hover .c-x,.asig-cel:active .c-x{opacity:1;}
+  .celda-vacia-pista{margin:auto;color:#c0d0ea;font-size:11px;font-weight:800;font-family:'Fredoka',sans-serif;pointer-events:none;}
+
+  /* MODAL */
+  .modal-fondo{position:fixed;inset:0;background:rgba(34,58,99,.45);backdrop-filter:blur(3px);display:none;
+    align-items:center;justify-content:center;z-index:200;padding:16px;}
+  .modal-fondo.abierto{display:flex;}
+  .modal{background:#fff;border-radius:24px;padding:24px;width:min(420px,100%);box-shadow:var(--sombra-fuerte);
+    animation:pop .2s cubic-bezier(.2,1.1,.4,1);}
+  .modal h2{margin:0 0 16px;font-size:21px;color:var(--azul);display:flex;align-items:center;gap:8px;}
+  .campo{margin-bottom:14px;}
+  .campo label{display:block;font-weight:800;font-size:13px;margin-bottom:6px;color:var(--texto-suave);}
+  .campo input[type=text]{width:100%;border:2.5px solid #d4e1f5;border-radius:12px;padding:10px 12px;font-size:15px;
+    font-family:'Nunito',sans-serif;font-weight:700;color:var(--texto);outline:none;}
+  .campo input:focus{border-color:var(--azul);}
+  .color-grid{display:flex;flex-wrap:wrap;gap:8px;}
+  .color-op{width:38px;height:38px;border-radius:50%;cursor:pointer;border:4px solid transparent;}
+  .color-op.sel{border-color:#223a63;}
+  .modal-acc{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;}
+  .btn-cancelar{background:#eef3fb;color:var(--azul);}
+  .btn-guardar{background:linear-gradient(120deg,var(--azul),var(--azul-claro));color:#fff;}
+
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--texto);
+    color:#fff;padding:11px 18px;border-radius:14px;font-weight:800;font-size:14px;box-shadow:var(--sombra-fuerte);
+    opacity:0;transition:all .25s ease;z-index:250;pointer-events:none;}
+  .toast.ver{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  @keyframes pop{from{opacity:0;transform:scale(.9);}to{opacity:1;transform:scale(1);}}
+
+  /* RESPONSIVE */
+  @media (max-width:900px){
+    .contenedor{flex-direction:column;}
+    .banco{position:static;flex:1 1 auto;width:100%;max-height:none;}
+    .asignaturas{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:7px;}
+    .cal-wrap{width:100%;overflow-x:auto;}
+    .grid{min-width:620px;}
+  }
+  @media (max-width:640px){
+    .toolbar h1{font-size:20px;}
+    .toolbar .btn,.perfil-tab{font-size:13px;}
+  }
+
+  /* IMPRESIÓN A3 */
+  @page{size:A3 landscape;margin:10mm;}
+  @media print{
+    html,body{background:#fff !important;}
+    .toolbar,.banco,.toast,.modal-fondo,.c-x,.celda-vacia-pista{display:none !important;}
+    .contenedor{display:block;padding:0;max-width:none;}
+    .cal-wrap{width:100%;overflow:visible;}
+    .grid{box-shadow:none;border:1.5px solid #cdd9ee;height:188mm;grid-template-rows:auto;gap:4px;min-width:0;}
+    .celda{min-height:0;}
+    .asig-cel{animation:none;}
+    *{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}
+  }
+</style>
+</head>
+<body>
+
+  <header class="toolbar">
+    <div class="marca">
+      <img class="logo-img" src="logo-colegio.png" alt="Colegio" />
+      <div>
+        <h1>Horario del Colegio</h1>
+        <p class="sub">Arrastra o toca las asignaturas para colocarlas 🏫</p>
+      </div>
+    </div>
+    <div class="perfiles">
+      <button class="perfil-tab activo" data-perfil="lara">👧 Lara</button>
+      <button class="perfil-tab" data-perfil="carli">🧒 Carli</button>
+    </div>
+    <a class="btn btn-ghost" href="HorarioInfantil.html" title="Ir al horario semanal">🗓️ Semana</a>
+    <button class="btn btn-imprimir" id="btnImprimir">🖨️ Imprimir A3</button>
+  </header>
+
+  <div class="contenedor">
+    <aside class="banco">
+      <h2>📚 Asignaturas</h2>
+      <p class="pista">Toca una asignatura y luego toca una casilla. En el ordenador también puedes arrastrarla. 👉</p>
+      <div class="tiza-aviso" id="tizaAviso"></div>
+      <div class="asignaturas" id="listaAsig"></div>
+      <button class="btn-nueva-asig" id="btnNuevaAsig">➕ Nueva asignatura</button>
+      <button class="btn-borrar" id="btnVaciar">🧹 Vaciar este horario</button>
+    </aside>
+
+    <main class="cal-wrap">
+      <div class="grid" id="grid"></div>
+    </main>
+  </div>
+
+  <!-- MODAL NUEVA ASIGNATURA -->
+  <div class="modal-fondo" id="modalAsig">
+    <div class="modal">
+      <h2>✨ Nueva asignatura</h2>
+      <div class="campo">
+        <label>Abreviatura (corta)</label>
+        <input type="text" id="inpCod" placeholder="Ej: MAT" maxlength="6" />
+      </div>
+      <div class="campo">
+        <label>Nombre completo</label>
+        <input type="text" id="inpNom" placeholder="Ej: Matemáticas" maxlength="30" />
+      </div>
+      <div class="campo">
+        <label>Color</label>
+        <div class="color-grid" id="colorGrid"></div>
+      </div>
+      <div class="modal-acc">
+        <button class="btn btn-cancelar" id="btnAsigCancelar">Cancelar</button>
+        <button class="btn btn-guardar" id="btnAsigGuardar">💾 Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  const DIAS = [
+    {n:"Lunes",c:"linear-gradient(135deg,#2b5fb0,#5b8fe0)"},
+    {n:"Martes",c:"linear-gradient(135deg,#2ec5c0,#6fe0b0)"},
+    {n:"Miércoles",c:"linear-gradient(135deg,#e8505b,#ff9a86)"},
+    {n:"Jueves",c:"linear-gradient(135deg,#ff9f45,#ffcf8f)"},
+    {n:"Viernes",c:"linear-gradient(135deg,#ffcf1f,#ffe88a)"}
+  ];
+  // filas: clases (con índice idx 0..5) y descansos
+  const FILAS = [
+    {tipo:"clase", idx:0, hora:"8:30 – 9:25"},
+    {tipo:"clase", idx:1, hora:"9:25 – 10:15"},
+    {tipo:"descanso", txt:"🥪 Recreo", hora:"10:15 – 10:45"},
+    {tipo:"clase", idx:2, hora:"10:45 – 11:35"},
+    {tipo:"clase", idx:3, hora:"11:35 – 12:30"},
+    {tipo:"descanso", txt:"🍽️ Comida", hora:"12:30 – 14:00"},
+    {tipo:"clase", idx:4, hora:"14:00 – 14:55"},
+    {tipo:"clase", idx:5, hora:"14:55 – 15:50"}
+  ];
+
+  const COLORES = ["#8aa0d8","#f2a9c0","#e8c86a","#c9b7e0","#8fc49a","#e8a15a",
+                   "#e8505b","#b7bfc9","#9fb8d8","#cfc6a8","#7ececb","#ffb3c7"];
+
+  // Asignaturas por defecto (del cole) — editables
+  const ASIG_DEF = [
+    {cod:"MAT",   nom:"Matemáticas",       color:"#8aa0d8"},
+    {cod:"CAS",   nom:"Castellano",        color:"#f2a9c0"},
+    {cod:"ALE",   nom:"Alemán",            color:"#e8c86a"},
+    {cod:"ING",   nom:"Inglés",            color:"#c9b7e0"},
+    {cod:"CMNSC", nom:"Conoc. del Medio",  color:"#7f9bd4"},
+    {cod:"KUN",   nom:"Plástica",          color:"#b7bfc9"},
+    {cod:"MUS",   nom:"Música",            color:"#e8505b"},
+    {cod:"EFI",   nom:"Ed. Física",        color:"#e8a15a"},
+    {cod:"EEC",   nom:"EEC",               color:"#8fc49a"},
+    {cod:"REL",   nom:"Religión",          color:"#cfc6a8"},
+    {cod:"Tut",   nom:"Tutoría",           color:"#9fb8d8"}
+  ];
+
+  // Horario de Lara (dia 0..4, slot 0..5) ya rellenado
+  const LARA = {
+    "0_0":"MAT","0_1":"KUN","0_2":"ALE","0_3":"CMNSC","0_4":"ING","0_5":"ING",
+    "1_0":"Tut","1_1":"ALE","1_2":"ALE","1_3":"ING","1_4":"CAS","1_5":"EFI",
+    "2_0":"ALE","2_1":"ALE","2_2":"MAT","2_3":"MAT","2_4":"CMNSC","2_5":"EFI",
+    "3_0":"CAS","3_1":"MAT","3_2":"MAT","3_3":"CMNSC","3_4":"EEC","3_5":"EFI",
+    "4_0":"CAS","4_1":"CAS","4_2":"KUN","4_3":"MUS","4_4":"CMNSC","4_5":"REL"
+  };
+
+  const CLAVE = "horario_colegio_v1";
+  let estado = {
+    asignaturas: ASIG_DEF.slice(),
+    perfiles: { lara:{cells:Object.assign({},LARA)}, carli:{cells:{}} }
+  };
+  let perfil = "lara";
+  let tizaSel = null;       // código de asignatura seleccionada para colocar tocando
+  let colorSel = COLORES[0];
+  let arrastre = null;      // {cod} desde banco  |  {desde:"d_s"} mover
+
+  function guardar(){ try{ localStorage.setItem(CLAVE, JSON.stringify(estado)); }catch(e){} }
+  function cargar(){
+    try{ const raw=localStorage.getItem(CLAVE); if(raw){ const d=JSON.parse(raw);
+      if(d&&d.asignaturas&&d.perfiles){ estado=d; if(!estado.perfiles.lara)estado.perfiles.lara={cells:{}};
+      if(!estado.perfiles.carli)estado.perfiles.carli={cells:{}}; } } }catch(e){}
+  }
+  function asigPorCod(cod){ return estado.asignaturas.find(a=>a.cod===cod); }
+  function cells(){ return estado.perfiles[perfil].cells; }
+  function escap(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+
+  const grid = document.getElementById("grid");
+
+  function render(){
+    grid.innerHTML="";
+    const esq=document.createElement("div"); esq.className="esq"; grid.appendChild(esq);
+    DIAS.forEach(d=>{ const c=document.createElement("div"); c.className="dia-cab"; c.style.background=d.c; c.textContent=d.n; grid.appendChild(c); });
+
+    FILAS.forEach(f=>{
+      if(f.tipo==="descanso"){
+        const h=document.createElement("div"); h.className="hora-cab"; h.textContent=f.hora; grid.appendChild(h);
+        const b=document.createElement("div"); b.className="fila-descanso"; b.textContent=f.txt; grid.appendChild(b);
+        return;
+      }
+      const h=document.createElement("div"); h.className="hora-cab"; h.innerHTML=f.hora.replace(" – ","<br>"); grid.appendChild(h);
+      DIAS.forEach((d,di)=>{
+        const key=di+"_"+f.idx;
+        const celda=document.createElement("div"); celda.className="celda"; celda.dataset.key=key;
+        const cod=cells()[key];
+        if(cod && asigPorCod(cod)){
+          celda.appendChild(crearAsigCel(cod,key));
+        } else {
+          celda.classList.add("vacia");
+          const p=document.createElement("div"); p.className="celda-vacia-pista"; p.textContent="+"; celda.appendChild(p);
+        }
+        habilitarCelda(celda,key);
+        grid.appendChild(celda);
+      });
+    });
+  }
+
+  function crearAsigCel(cod,key){
+    const a=asigPorCod(cod);
+    const el=document.createElement("div"); el.className="asig-cel"; el.style.background=a.color; el.draggable=true;
+    el.innerHTML=`<span class="c-cod">${escap(a.cod)}</span><span class="c-nom">${escap(a.nom)}</span>
+      <button class="c-x" title="Quitar">✕</button>`;
+    el.querySelector(".c-x").addEventListener("click",(e)=>{ e.stopPropagation(); delete cells()[key]; guardar(); render(); });
+    el.addEventListener("dragstart",(e)=>{ arrastre={desde:key}; e.dataTransfer.effectAllowed="move"; try{e.dataTransfer.setData("text/plain",cod);}catch(_){ } });
+    el.addEventListener("dragend",()=>{ arrastre=null; });
+    return el;
+  }
+
+  function colocar(key,cod){
+    cells()[key]=cod; guardar(); render();
+  }
+  function habilitarCelda(celda,key){
+    celda.addEventListener("click",(e)=>{
+      if(e.target.closest(".c-x")) return;
+      if(tizaSel){ colocar(key,tizaSel); toast("Colocada "+tizaSel+" ✏️"); }
+    });
+    celda.addEventListener("dragover",(e)=>{ e.preventDefault(); celda.classList.add("drag-over"); });
+    celda.addEventListener("dragleave",()=>celda.classList.remove("drag-over"));
+    celda.addEventListener("drop",(e)=>{
+      e.preventDefault(); celda.classList.remove("drag-over");
+      if(!arrastre) return;
+      if(arrastre.cod){ colocar(key,arrastre.cod); }
+      else if(arrastre.desde){ const c=cells()[arrastre.desde]; if(c){ delete cells()[arrastre.desde]; colocar(key,c); } }
+      arrastre=null;
+    });
+  }
+
+  /* BANCO */
+  function renderBanco(){
+    const cont=document.getElementById("listaAsig"); cont.innerHTML="";
+    estado.asignaturas.forEach(a=>{
+      const el=document.createElement("div"); el.className="asig"+(tizaSel===a.cod?" sel":""); el.style.background=a.color; el.draggable=true; el.dataset.cod=a.cod;
+      el.innerHTML=`<span class="cod">${escap(a.cod)}</span><span class="nom">${escap(a.nom)}</span>`;
+      el.addEventListener("click",()=>{ tizaSel = (tizaSel===a.cod)? null : a.cod; actualizarTiza(); renderBanco(); });
+      el.addEventListener("dragstart",(e)=>{ arrastre={cod:a.cod}; e.dataTransfer.effectAllowed="copy"; try{e.dataTransfer.setData("text/plain",a.cod);}catch(_){ } });
+      el.addEventListener("dragend",()=>{ arrastre=null; });
+      cont.appendChild(el);
+    });
+  }
+  function actualizarTiza(){
+    const av=document.getElementById("tizaAviso");
+    if(tizaSel){ av.classList.add("ver"); av.innerHTML="✏️ <b>"+escap(tizaSel)+"</b> elegida. Toca una casilla para colocarla. (Toca otra vez para soltar.)"; }
+    else av.classList.remove("ver");
+  }
+
+  /* PERFILES */
+  document.querySelectorAll(".perfil-tab").forEach(t=>{
+    t.addEventListener("click",()=>{
+      document.querySelectorAll(".perfil-tab").forEach(x=>x.classList.remove("activo"));
+      t.classList.add("activo"); perfil=t.dataset.perfil; render();
+    });
+  });
+
+  /* MODAL NUEVA ASIGNATURA */
+  const modalAsig=document.getElementById("modalAsig");
+  function construirColores(){
+    const cg=document.getElementById("colorGrid"); cg.innerHTML="";
+    COLORES.forEach(col=>{ const b=document.createElement("div"); b.className="color-op"; b.style.background=col;
+      b.addEventListener("click",()=>{ colorSel=col; cg.querySelectorAll(".sel").forEach(n=>n.classList.remove("sel")); b.classList.add("sel"); });
+      cg.appendChild(b); });
+    cg.firstChild.classList.add("sel"); colorSel=COLORES[0];
+  }
+  function abrirModal(){ document.getElementById("inpCod").value=""; document.getElementById("inpNom").value="";
+    construirColores(); modalAsig.classList.add("abierto"); setTimeout(()=>document.getElementById("inpCod").focus(),50); }
+  function cerrarModal(){ modalAsig.classList.remove("abierto"); }
+  function guardarAsig(){
+    const cod=document.getElementById("inpCod").value.trim();
+    const nom=document.getElementById("inpNom").value.trim();
+    if(!cod){ toast("Escribe una abreviatura 🙂"); return; }
+    if(asigPorCod(cod)){ toast("Ya existe esa asignatura"); return; }
+    estado.asignaturas.push({cod,nom:nom||cod,color:colorSel});
+    guardar(); renderBanco(); cerrarModal(); toast("Asignatura añadida ✨");
+  }
+
+  /* IMPRIMIR */
+  function imprimir(){ window.print(); }
+
+  /* TOAST */
+  let toastT=null;
+  function toast(m){ const e=document.getElementById("toast"); e.textContent=m; e.classList.add("ver"); clearTimeout(toastT); toastT=setTimeout(()=>e.classList.remove("ver"),1600); }
+
+  /* EVENTOS */
+  document.getElementById("btnImprimir").addEventListener("click",imprimir);
+  document.getElementById("btnNuevaAsig").addEventListener("click",abrirModal);
+  document.getElementById("btnAsigGuardar").addEventListener("click",guardarAsig);
+  document.getElementById("btnAsigCancelar").addEventListener("click",cerrarModal);
+  modalAsig.addEventListener("click",(e)=>{ if(e.target===modalAsig) cerrarModal(); });
+  document.getElementById("inpNom").addEventListener("keydown",(e)=>{ if(e.key==="Enter") guardarAsig(); });
+  document.getElementById("btnVaciar").addEventListener("click",()=>{
+    if(confirm("¿Vaciar el horario de "+(perfil==="lara"?"Lara":"Carli")+"? 🧹")){
+      estado.perfiles[perfil].cells={}; guardar(); render(); toast("Horario vacío ✨");
+    }
+  });
+  document.addEventListener("keydown",(e)=>{ if(e.key==="Escape"){ cerrarModal(); tizaSel=null; actualizarTiza(); renderBanco(); } });
+
+  /* INICIO */
+  cargar();
+  renderBanco();
+  render();
+})();
+</script>
+</body>
+</html>
