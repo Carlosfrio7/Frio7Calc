@@ -446,6 +446,7 @@
       </div>
     </div>
     <button class="btn btn-ghost" id="btnDeshacer" title="Deshacer (Ctrl+Z)">↩️ Deshacer</button>
+    <button class="btn btn-claro" id="btnSync" title="Ver el mismo horario en todos los dispositivos">☁️ Sincronizar</button>
     <button class="btn btn-claro" id="btnBorrarTodo">🧹 Vaciar</button>
     <button class="btn btn-claro" id="btnIpad">📱 Vista iPad</button>
     <button class="btn btn-imprimir" id="btnImprimir">🖨️ Imprimir en A3</button>
@@ -525,6 +526,26 @@
       <div class="modal-acciones">
         <button class="btn btn-cancelar" id="btnCancelar">Cancelar</button>
         <button class="btn btn-guardar" id="btnGuardarAct">💾 Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL SINCRONIZAR -->
+  <div class="modal-fondo" id="modalSync">
+    <div class="modal">
+      <h2>☁️ Sincronizar</h2>
+      <p style="margin:0 0 16px;font-weight:700;color:var(--texto-suave);line-height:1.4;">
+        Escribe el <b>mismo código</b> en el PC, el iPad y el iPhone para ver y editar el mismo horario en todos. 🔄
+      </p>
+      <div class="campo">
+        <label>Código familiar</label>
+        <input type="text" id="inpSync" placeholder="ej: lara2024" maxlength="40" autocomplete="off" />
+      </div>
+      <div id="syncEstado" style="font-weight:800;font-size:13.5px;min-height:20px;margin-bottom:6px;"></div>
+      <div class="modal-acciones">
+        <button class="btn btn-cancelar" id="btnSyncDesactivar" style="margin-right:auto;display:none;">🔌 Desconectar</button>
+        <button class="btn btn-cancelar" id="btnSyncCerrar">Cerrar</button>
+        <button class="btn btn-guardar" id="btnSyncActivar">☁️ Activar</button>
       </div>
     </div>
   </div>
@@ -629,6 +650,7 @@
   /* ============ PERSISTENCIA ============ */
   function guardar(){
     try{ localStorage.setItem(CLAVE_LS, JSON.stringify(estado)); }catch(e){}
+    programarPush();   // si la sincronización está activa, sube los cambios a la nube
   }
   function cargar(){
     try{
@@ -650,6 +672,77 @@
   }
   function actualizarBotonDeshacer(){
     document.getElementById("btnDeshacer").style.opacity = historial.length? "1":".55";
+  }
+
+  /* ============ SINCRONIZACIÓN EN LA NUBE ============ */
+  const API_SYNC = "api/horario";
+  let codigoSync = null;     // código familiar (null = sin sincronizar)
+  let revLocal = 0;          // marca de tiempo de la última versión conocida
+  let pushTimer = null, pollTimer = null, subiendo = false;
+
+  function limpiarCodigo(c){ return (c||"").toString().trim().toLowerCase().replace(/[^a-z0-9_-]/g,"").slice(0,40); }
+
+  async function syncPull(){
+    if(!codigoSync) return undefined;
+    try{
+      const r = await fetch(API_SYNC+"?code="+encodeURIComponent(codigoSync),{cache:"no-store"});
+      if(!r.ok) return undefined;
+      const data = await r.json();  // {rev, estado} | null
+      return data;
+    }catch(e){ return undefined; }
+  }
+  async function syncPush(){
+    if(!codigoSync) return false;
+    subiendo = true;
+    revLocal = Date.now();
+    try{
+      const r = await fetch(API_SYNC+"?code="+encodeURIComponent(codigoSync),{
+        method:"PUT", headers:{"content-type":"application/json"},
+        body: JSON.stringify({rev:revLocal, estado})
+      });
+      return r.ok;
+    }catch(e){ return false; }
+    finally{ setTimeout(()=>{subiendo=false;}, 300); }
+  }
+  function programarPush(){
+    if(!codigoSync) return;
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(syncPush, 700);
+  }
+  function aplicarRemoto(data, forzar){
+    if(!data || !data.estado || !data.rev) return false;
+    if(!forzar){
+      if(data.rev <= revLocal) return false;
+      // durante el polling no pisamos si hay un cuadro abierto (edición en curso)
+      if(modalFondo.classList.contains("abierto") || document.getElementById("modalSync").classList.contains("abierto")) return false;
+    }
+    estado = data.estado; revLocal = data.rev;
+    try{ localStorage.setItem(CLAVE_LS, JSON.stringify(estado)); }catch(e){}
+    if(estado.nombre) nombreInp.value = estado.nombre;
+    render();
+    return true;
+  }
+  function iniciarPoll(){
+    clearInterval(pollTimer);
+    pollTimer = setInterval(async ()=>{
+      if(!codigoSync || subiendo) return;
+      const data = await syncPull();
+      if(data) aplicarRemoto(data);
+    }, 6000);
+  }
+  // Arranque al cargar la página si ya había un código guardado
+  async function arrancarSync(){
+    if(!codigoSync) return;
+    const data = await syncPull();
+    if(data && data.estado){ aplicarRemoto(data, true); }   // baja lo que haya en la nube
+    else if(data === null){ await syncPush(); }              // nube vacía: sube lo local
+    iniciarPoll();
+    actualizarBotonSync();
+  }
+  function actualizarBotonSync(){
+    const b = document.getElementById("btnSync");
+    if(codigoSync){ b.innerHTML = "☁️ "+codigoSync; b.style.background="#d7f7e3"; b.style.color="#18794e"; }
+    else { b.innerHTML = "☁️ Sincronizar"; b.style.background=""; b.style.color=""; }
   }
 
   /* ============ RENDER ============ */
@@ -1222,14 +1315,64 @@
   const nombreInp=document.getElementById("nombrePlan");
   nombreInp.addEventListener("input",()=>{ estado.nombre=nombreInp.value; guardar(); });
 
+  // --- Sincronización (modal) ---
+  const modalSync=document.getElementById("modalSync");
+  function abrirSyncModal(){
+    document.getElementById("inpSync").value = codigoSync || "";
+    document.getElementById("syncEstado").textContent = "";
+    document.getElementById("btnSyncDesactivar").style.display = codigoSync? "" : "none";
+    modalSync.classList.add("abierto");
+    setTimeout(()=>document.getElementById("inpSync").focus(),50);
+  }
+  function cerrarSyncModal(){ modalSync.classList.remove("abierto"); }
+  async function activarSyncDesdeModal(){
+    const code = limpiarCodigo(document.getElementById("inpSync").value);
+    const est = document.getElementById("syncEstado");
+    if(!code){ est.style.color="#e23c5e"; est.textContent="Escribe un código (letras y números, sin espacios)."; return; }
+    codigoSync = code;
+    try{ localStorage.setItem("horario_sync_code", code); }catch(e){}
+    est.style.color="#6b5ca8"; est.textContent="Conectando… ☁️";
+    const data = await syncPull();
+    if(data === undefined){
+      est.style.color="#e23c5e";
+      est.textContent="No se pudo conectar. Revisa que el almacenamiento esté configurado en Cloudflare.";
+      return;
+    }
+    if(data && data.estado){
+      aplicarRemoto(data, true);
+      est.style.color="#18794e"; est.textContent="¡Listo! Se descargó el horario de la nube. ✅";
+    }else{
+      await syncPush();
+      est.style.color="#18794e"; est.textContent="¡Listo! Tu horario se subió a la nube. ✅";
+    }
+    iniciarPoll(); actualizarBotonSync();
+    document.getElementById("btnSyncDesactivar").style.display="";
+    toast("Sincronización activada ☁️");
+    setTimeout(cerrarSyncModal, 1300);
+  }
+  function desactivarSync(){
+    codigoSync=null; clearInterval(pollTimer); clearTimeout(pushTimer);
+    try{ localStorage.removeItem("horario_sync_code"); }catch(e){}
+    actualizarBotonSync(); cerrarSyncModal(); toast("Sincronización desconectada 🔌");
+  }
+  document.getElementById("btnSync").addEventListener("click",abrirSyncModal);
+  document.getElementById("btnSyncCerrar").addEventListener("click",cerrarSyncModal);
+  document.getElementById("btnSyncActivar").addEventListener("click",activarSyncDesdeModal);
+  document.getElementById("btnSyncDesactivar").addEventListener("click",desactivarSync);
+  modalSync.addEventListener("click",(e)=>{ if(e.target===modalSync) cerrarSyncModal(); });
+  document.getElementById("inpSync").addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); activarSyncDesdeModal(); } });
+
   /* ============ INICIO ============ */
   function iniciar(){
     cargar();
+    try{ codigoSync = localStorage.getItem("horario_sync_code") || null; }catch(e){}
     nombreInp.value = estado.nombre || nombreInp.value;
     construirModalSelectores();
     renderBanco();
     renderIpadBanco();
     render();
+    arrancarSync();                 // si ya había código guardado, baja el horario de la nube
+    actualizarBotonSync();
     actualizarBotonDeshacer();
     actualizarMenuPegar();
   }
