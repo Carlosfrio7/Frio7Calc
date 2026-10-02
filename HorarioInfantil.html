@@ -238,6 +238,12 @@
   .emoji-op:hover{transform:scale(1.12);}
   .emoji-op.sel{border-color:var(--violeta);background:#efe9ff;}
 
+  .sel-fila{display:flex;flex-wrap:wrap;gap:6px;}
+  .sel-op{font-family:'Fredoka',sans-serif;font-weight:600;font-size:13px;border:2.5px solid #e4ddff;
+    background:#faf8ff;color:var(--texto);border-radius:12px;padding:8px 12px;cursor:pointer;transition:all .1s ease;}
+  .sel-op:hover{transform:translateY(-1px);}
+  .sel-op.sel{border-color:var(--violeta);background:#efe9ff;color:var(--violeta);}
+
   .color-grid{display:flex;flex-wrap:wrap;gap:9px;}
   .color-op{width:40px;height:40px;border-radius:50%;cursor:pointer;border:4px solid transparent;transition:transform .1s ease;}
   .color-op:hover{transform:scale(1.12);}
@@ -383,7 +389,7 @@
     <!-- CALENDARIO -->
     <main class="calendario-wrap">
       <div class="cal-cabecera">
-        <input class="nombre-plan" id="nombrePlan" value="🌟 La semana de Lucía 🌟" />
+        <input class="nombre-plan" id="nombrePlan" value="🌟 La semana de Lara 🌟" />
         <span class="leyenda">💡 Clic = seleccionar · Clic derecho = menú · Doble clic = editar</span>
       </div>
       <div class="grid" id="grid"></div>
@@ -409,6 +415,12 @@
         <label>¿Cómo se llama?</label>
         <input type="text" id="inpNombre" placeholder="Ej: Clase de piano" maxlength="40" />
       </div>
+      <div class="campo" id="campoUbicacion">
+        <label>¿Qué día?</label>
+        <div class="sel-fila" id="selDiaFila"></div>
+        <label style="margin-top:14px;">¿En qué momento?</label>
+        <div class="sel-fila" id="selFranjaFila"></div>
+      </div>
       <div class="campo">
         <label>Elige un dibujo</label>
         <div class="emoji-grid" id="emojiGrid"></div>
@@ -427,6 +439,7 @@
   <!-- VISTA IPAD -->
   <div class="vista-ipad" id="vistaIpad">
     <div class="ipad-controles">
+      <button class="btn btn-nueva" id="btnIpadNueva" style="box-shadow:0 5px 14px rgba(0,0,0,.2);">➕ Nueva actividad</button>
       <button class="btn btn-imprimir" id="btnIpadImprimir">🖨️ Imprimir A3</button>
       <button class="btn btn-ghost" id="btnIpadCerrar">✕ Salir</button>
     </div>
@@ -500,13 +513,14 @@
 
   /* ============ ESTADO ============ */
   const CLAVE_LS = "horario_infantil_v1";
-  let estado = { nombre:"🌟 La semana de Lucía 🌟", tareas:{} }; // tareas[dia_franja] = [ {id,nombre,emoji,color,hecha} ]
+  let estado = { nombre:"🌟 La semana de Lara 🌟", tareas:{} }; // tareas[dia_franja] = [ {id,nombre,emoji,color,hecha} ]
   let historial = [];
   let seleccion = null;      // {dia, franja, id}
   let portapapeles = null;   // tarea copiada (objeto)
   let menuDestino = null;    // {dia, franja, id} o {dia, franja} (celda) al abrir menú
   let modalContexto = null;  // {modo:'nueva'|'editar'|'banco', ...}
   let emojiSel = EMOJIS[0], colorSel = COLORES[0];
+  let ubiDia = 0, ubiFranja = "manana";   // día y franja elegidos en el modal
 
   function celdaClave(dia,franja){return dia+"_"+franja;}
   function uid(){return "t"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
@@ -567,12 +581,18 @@
         celda.className="celda";
         celda.dataset.dia=di; celda.dataset.franja=fr.clave;
         habilitarSoltar(celda,di,fr.clave);
+        // tocar un hueco vacío de la celda crea una actividad ahí (ideal en iPad/táctil)
+        celda.addEventListener("click",(e)=>{
+          if(e.target===celda || e.target.classList.contains("celda-vacia-pista")){
+            abrirNueva(di,fr.clave);
+          }
+        });
 
         const lista = estado.tareas[celdaClave(di,fr.clave)] || [];
         if(lista.length===0){
           const pista=document.createElement("div");
           pista.className="celda-vacia-pista";
-          pista.textContent="Suelta aquí 🌈";
+          pista.textContent="➕ Toca para añadir";
           celda.appendChild(pista);
         }
         lista.forEach(t=> celda.appendChild(crearTarjeta(t,di,fr.clave)) );
@@ -809,6 +829,26 @@
       b.addEventListener("click",()=>{ colorSel=col; marcarSel(cg,b); });
       cg.appendChild(b);
     });
+    // selectores de día y momento (para crear/mover tocando, sin arrastrar)
+    const df=document.getElementById("selDiaFila"); df.innerHTML="";
+    DIAS.forEach((d,i)=>{
+      const b=document.createElement("button"); b.type="button"; b.className="sel-op";
+      b.textContent=d.corto; b.title=d.nombre;
+      b.addEventListener("click",()=>{ ubiDia=i; marcarSel(df,b); });
+      df.appendChild(b);
+    });
+    const ff=document.getElementById("selFranjaFila"); ff.innerHTML="";
+    FRANJAS.forEach(fr=>{
+      const b=document.createElement("button"); b.type="button"; b.className="sel-op";
+      b.textContent=fr.ico+" "+fr.nombre;
+      b.addEventListener("click",()=>{ ubiFranja=fr.clave; marcarSel(ff,b); });
+      ff.appendChild(b);
+    });
+  }
+  function preUbicacion(dia,franja){
+    ubiDia=dia; ubiFranja=franja;
+    document.querySelectorAll("#selDiaFila .sel-op").forEach((n,i)=>n.classList.toggle("sel",i===dia));
+    document.querySelectorAll("#selFranjaFila .sel-op").forEach((n,i)=>n.classList.toggle("sel",FRANJAS[i].clave===franja));
   }
   function marcarSel(cont,el){ cont.querySelectorAll(".sel").forEach(n=>n.classList.remove("sel")); el.classList.add("sel"); }
   function preseleccionar(emoji,color){
@@ -820,12 +860,16 @@
     const n=parseInt(hex.slice(1),16); return `rgb(${(n>>16)&255}, ${(n>>8)&255}, ${n&255})`;
   }
 
-  function abrirNueva(){
+  function abrirNueva(dia,franja){
     modalContexto={modo:"nueva"};
     document.getElementById("modalTitulo").textContent="✨ Nueva actividad";
     document.getElementById("inpNombre").value="";
     emojiSel=EMOJIS[0]; colorSel=COLORES[0];
     preseleccionar(emojiSel,colorSel);
+    const d = (typeof dia==="number")? dia : (seleccion? seleccion.dia : 0);
+    const f = franja || (seleccion? seleccion.franja : "manana");
+    preUbicacion(d,f);
+    document.getElementById("campoUbicacion").style.display="";
     abrirModal();
   }
   function abrirEditar(dia,franja,id){
@@ -836,6 +880,8 @@
     document.getElementById("inpNombre").value=t.nombre;
     emojiSel=t.emoji; colorSel=t.color;
     preseleccionar(emojiSel,colorSel);
+    preUbicacion(+dia,franja);   // permite mover la actividad de día/momento sin arrastrar
+    document.getElementById("campoUbicacion").style.display="";
     abrirModal();
   }
   function abrirModal(){ modalFondo.classList.add("abierto"); setTimeout(()=>document.getElementById("inpNombre").focus(),50); }
@@ -844,17 +890,30 @@
   function guardarModal(){
     const nombre=document.getElementById("inpNombre").value.trim();
     if(!nombre){ toast("Escribe un nombre 🙂"); document.getElementById("inpNombre").focus(); return; }
+    let destId=null, destDia=ubiDia, destFr=ubiFranja;
     if(modalContexto.modo==="editar"){
       const t=(estado.tareas[celdaClave(modalContexto.dia,modalContexto.franja)]||[]).find(x=>x.id===modalContexto.id);
-      if(t){ snapshot(); t.nombre=nombre; t.emoji=emojiSel; t.color=colorSel; }
+      if(t){
+        snapshot();
+        t.nombre=nombre; t.emoji=emojiSel; t.color=colorSel;
+        // si cambió el día o el momento, movemos la actividad a la nueva celda
+        if(ubiDia!==modalContexto.dia || ubiFranja!==modalContexto.franja){
+          quitarTarea(modalContexto.dia,modalContexto.franja,t.id);
+          anadirTarea(ubiDia,ubiFranja,t);
+        }
+        destId=t.id;
+      }
     }else{
-      // "nueva": la añadimos como primera tarjeta del Lunes/Mañana o a la celda seleccionada
       snapshot();
-      const destDia = seleccion? seleccion.dia : 0;
-      const destFr  = seleccion? seleccion.franja : "manana";
-      anadirTarea(destDia,destFr,{id:uid(),nombre,emoji:emojiSel,color:colorSel,hecha:false});
+      destId=uid();
+      anadirTarea(ubiDia,ubiFranja,{id:destId,nombre,emoji:emojiSel,color:colorSel,hecha:false});
     }
     guardar(); render(); cerrarModal(); toast("Guardada 💾");
+    if(destId){
+      seleccionar(destDia,destFr,destId);
+      const n=document.querySelector(`.tarjeta[data-id="${destId}"]`);
+      if(n){ const r=n.getBoundingClientRect(); lanzarConfeti(r.left+r.width/2,r.top+r.height/2,14); }
+    }
   }
 
   /* ============ CONFETI ============ */
@@ -969,6 +1028,7 @@
   document.getElementById("btnImprimir").addEventListener("click",imprimir);
   document.getElementById("btnIpad").addEventListener("click",abrirIpad);
   document.getElementById("btnIpadCerrar").addEventListener("click",cerrarIpad);
+  document.getElementById("btnIpadNueva").addEventListener("click",()=>abrirNueva());
   document.getElementById("btnIpadImprimir").addEventListener("click",()=>{ cerrarIpad(); imprimir(); });
   document.getElementById("btnDeshacer").addEventListener("click",deshacer);
   document.getElementById("btnNueva").addEventListener("click",abrirNueva);
