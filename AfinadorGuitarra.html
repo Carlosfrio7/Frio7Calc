@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Afinador de Guitarra</title>
+<link rel="icon" type="image/jpeg" href="logotipo.jpg" />
+<link rel="apple-touch-icon" href="logotipo.jpg" />
+<meta name="theme-color" content="#0e1116" />
+<meta name="description" content="Afinador cromático para guitarra española que escucha tu guitarra por el micrófono." />
+<style>
+  /* ---------- Identidad: taller de lutería, madera + latón sobre pizarra ----------
+     Layout: pantalla única centrada — selector de cuerdas arriba, aguja de afinación
+     en el centro, lectura de nota/frecuencia debajo, botón de micro al pie. */
+  :root{
+    --bg:#0e1116; --bg-soft:#161b22; --panel:#1b222c;
+    --fg:#eef2f6; --muted:#8a96a6; --line:#2a333f;
+    --brass:#d8a24a; --brass-soft:#8a6b33;
+    --flat:#f2994a;   /* grave / bajo  */
+    --sharp:#56a3ff;  /* agudo / alto  */
+    --intune:#37d67a; /* afinado       */
+    --shadow:0 10px 40px rgba(0,0,0,.45);
+    color-scheme: dark;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0; background:
+      radial-gradient(120% 80% at 50% -10%, #1a2230 0%, var(--bg) 55%) fixed;
+    color:var(--fg);
+    font-family:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+    display:flex; flex-direction:column; align-items:center;
+    padding:max(env(safe-area-inset-top),14px) 16px max(env(safe-area-inset-bottom),14px);
+    -webkit-tap-highlight-color:transparent; user-select:none;
+  }
+  header{text-align:center; margin-bottom:4px;}
+  h1{
+    font-size:clamp(1.3rem,5vw,1.8rem); margin:0; font-weight:800; letter-spacing:.5px;
+    display:flex; align-items:center; gap:.5rem; justify-content:center;
+  }
+  h1 .tag{
+    font-size:.6rem; letter-spacing:2px; text-transform:uppercase; color:var(--brass);
+    border:1px solid var(--brass-soft); border-radius:999px; padding:3px 8px; font-weight:700;
+  }
+  .sub{color:var(--muted); font-size:.82rem; margin:4px 0 0;}
+
+  /* --- Selector de cuerdas --- */
+  .strings{
+    display:flex; gap:7px; margin:16px 0 8px; flex-wrap:wrap; justify-content:center;
+  }
+  .string{
+    width:46px; height:58px; border-radius:12px; background:var(--panel);
+    border:1px solid var(--line); display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:1px; cursor:pointer;
+    transition:border-color .15s, transform .15s, background .15s;
+  }
+  .string .n{font-size:1.15rem; font-weight:800; line-height:1;}
+  .string .hz{font-size:.56rem; color:var(--muted);}
+  .string.target{border-color:var(--brass); background:#232a18; transform:translateY(-3px);}
+  .string.target .n{color:var(--brass);}
+  .string.done{border-color:var(--intune);}
+  .string.done .n{color:var(--intune);}
+
+  /* --- Medidor / aguja --- */
+  .gauge-wrap{position:relative; width:min(92vw,360px); margin:8px auto 0;}
+  svg{width:100%; height:auto; display:block; overflow:visible;}
+  .readout{
+    position:absolute; left:0; right:0; top:52%; text-align:center;
+    pointer-events:none;
+  }
+  .note{font-size:clamp(3.2rem,20vw,5rem); font-weight:800; line-height:.9;
+    font-variant-numeric:tabular-nums;}
+  .octave{font-size:.9rem; color:var(--muted); vertical-align:super;}
+  .cents{font-size:.95rem; color:var(--muted); font-variant-numeric:tabular-nums;
+    letter-spacing:.5px; margin-top:4px; height:1.2em;}
+  .freq{font-size:.8rem; color:var(--muted); font-variant-numeric:tabular-nums;}
+
+  .status{
+    margin-top:10px; min-height:1.6em; font-weight:700; letter-spacing:.5px;
+    font-size:.95rem; text-align:center; transition:color .2s;
+  }
+
+  /* --- Botón micro --- */
+  .controls{margin-top:6px; display:flex; flex-direction:column; align-items:center; gap:10px;}
+  button.mic{
+    appearance:none; border:none; cursor:pointer; font:inherit; font-weight:800;
+    color:#0e1116; background:linear-gradient(180deg,#f0c46e,var(--brass));
+    padding:14px 26px; border-radius:999px; font-size:1rem; letter-spacing:.3px;
+    box-shadow:var(--shadow); display:flex; align-items:center; gap:10px;
+    transition:transform .1s, filter .15s;
+  }
+  button.mic:active{transform:scale(.97);}
+  button.mic.on{background:linear-gradient(180deg,#3a4656,#232c38); color:var(--fg);
+    box-shadow:none; border:1px solid var(--line);}
+  button.mic svg{width:20px;height:20px;}
+  .hint{color:var(--muted); font-size:.75rem; text-align:center; max-width:320px; line-height:1.4;}
+  .hint b{color:var(--brass);}
+  .error{color:var(--flat); font-size:.82rem; text-align:center; max-width:340px; line-height:1.4;
+    min-height:1em;}
+  footer{margin-top:auto; padding-top:16px; color:var(--muted); font-size:.68rem; text-align:center;}
+  footer a{color:var(--brass);}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;}}
+</style>
+</head>
+<body>
+  <header>
+    <h1>Afinador <span class="tag">Guitarra</span></h1>
+    <p class="sub">Afinación estándar &nbsp;E&nbsp;·&nbsp;A&nbsp;·&nbsp;D&nbsp;·&nbsp;G&nbsp;·&nbsp;B&nbsp;·&nbsp;E</p>
+  </header>
+
+  <div class="strings" id="strings"></div>
+
+  <div class="gauge-wrap">
+    <svg viewBox="0 0 300 180" aria-hidden="true">
+      <!-- arco de fondo -->
+      <path id="arcBg" fill="none" stroke="var(--line)" stroke-width="14" stroke-linecap="round"/>
+      <!-- zona afinada (centro) -->
+      <path id="arcGreen" fill="none" stroke="var(--intune)" stroke-width="14" stroke-linecap="round" opacity=".35"/>
+      <!-- marcas -->
+      <g id="ticks" stroke="var(--muted)" stroke-width="2"></g>
+      <!-- aguja -->
+      <g id="needle" transform="rotate(0 150 150)">
+        <line x1="150" y1="150" x2="150" y2="40" stroke="var(--brass)" stroke-width="4" stroke-linecap="round"/>
+        <circle cx="150" cy="150" r="9" fill="var(--brass)"/>
+      </g>
+      <text x="36" y="172" fill="var(--flat)" font-size="12" font-weight="700">♭ bajo</text>
+      <text x="230" y="172" fill="var(--sharp)" font-size="12" font-weight="700">alto ♯</text>
+    </svg>
+    <div class="readout">
+      <div class="note" id="note">–</div>
+      <div class="cents" id="cents"></div>
+      <div class="freq" id="freq"></div>
+    </div>
+  </div>
+
+  <div class="status" id="status"></div>
+
+  <div class="controls">
+    <button class="mic" id="micBtn">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V22h2v-3.08A7 7 0 0 0 19 12h-2Z"/></svg>
+      <span id="micLabel">Activar micrófono</span>
+    </button>
+    <p class="hint" id="hint">Toca el botón, da permiso al micrófono y pulsa una cuerda al aire. La aguja se centra en <b>verde</b> cuando está afinada.</p>
+    <p class="error" id="error"></p>
+  </div>
+
+  <footer>Afinador cromático · Frio7Calc &nbsp;·&nbsp; <a href="index.html">Inicio</a></footer>
+
+<script>
+(function(){
+  "use strict";
+
+  // --- Cuerdas de guitarra (afinación estándar) ---
+  var STRINGS = [
+    {name:"E", octave:2, freq:82.41},
+    {name:"A", octave:2, freq:110.00},
+    {name:"D", octave:3, freq:146.83},
+    {name:"G", octave:3, freq:196.00},
+    {name:"B", octave:3, freq:246.94},
+    {name:"E", octave:4, freq:329.63}
+  ];
+  var NOTES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+  var A4 = 440;
+
+  // --- DOM ---
+  var $ = function(id){return document.getElementById(id);};
+  var stringsEl=$("strings"), noteEl=$("note"), centsEl=$("cents"),
+      freqEl=$("freq"), statusEl=$("status"), needle=$("needle"),
+      micBtn=$("micBtn"), micLabel=$("micLabel"), errEl=$("error");
+
+  // Pinta selector de cuerdas
+  var stringEls=[];
+  STRINGS.forEach(function(s,i){
+    var d=document.createElement("div");
+    d.className="string";
+    d.innerHTML='<span class="n">'+s.name+'</span><span class="hz">'+s.freq.toFixed(0)+' Hz</span>';
+    stringsEl.appendChild(d);
+    stringEls.push(d);
+  });
+
+  // --- Geometría del arco (semicírculo, -50..+50 cents = 180°..0°) ---
+  var CX=150, CY=150, R=105;
+  function polar(angDeg){
+    var a=angDeg*Math.PI/180;
+    return {x:CX+R*Math.cos(a), y:CY-R*Math.sin(a)};
+  }
+  function arcPath(a0,a1){
+    var p0=polar(a0), p1=polar(a1);
+    var large = Math.abs(a1-a0)>180?1:0;
+    var sweep = a1>a0?0:1;
+    return "M"+p0.x.toFixed(1)+" "+p0.y.toFixed(1)+" A"+R+" "+R+" 0 "+large+" "+sweep+" "+p1.x.toFixed(1)+" "+p1.y.toFixed(1);
+  }
+  $("arcBg").setAttribute("d", arcPath(180,0));
+  $("arcGreen").setAttribute("d", arcPath(97,83)); // franja central afinada
+  // marcas cada 10 cents
+  var ticks=$("ticks"), tg="";
+  for(var c=-50;c<=50;c+=10){
+    var ang=90-(c/50)*90;
+    var o=polar(ang), i2={x:CX+(R-10)*Math.cos(ang*Math.PI/180), y:CY-(R-10)*Math.sin(ang*Math.PI/180)};
+    tg+='<line x1="'+i2.x.toFixed(1)+'" y1="'+i2.y.toFixed(1)+'" x2="'+o.x.toFixed(1)+'" y2="'+o.y.toFixed(1)+'" stroke-width="'+(c===0?3:2)+'"/>';
+  }
+  ticks.innerHTML=tg;
+
+  function setNeedle(cents){ // cents -50..50
+    cents=Math.max(-50,Math.min(50,cents));
+    var ang = 90 - (cents/50)*90;      // grados en coord. matemáticas
+    var rot = -(ang-90);               // rotación del grupo (0 = vertical)
+    needle.setAttribute("transform","rotate("+rot.toFixed(1)+" 150 150)");
+  }
+
+  // --- Conversión frecuencia -> nota / cents ---
+  function freqToNote(f){
+    var midi = 69 + 12*Math.log2(f/A4);
+    var rounded = Math.round(midi);
+    var cents = Math.round((midi-rounded)*100);
+    var name = NOTES[(rounded%12+12)%12];
+    var octave = Math.floor(rounded/12)-1;
+    return {name:name, octave:octave, cents:cents};
+  }
+  function nearestString(f){
+    var best=null,bd=1e9;
+    STRINGS.forEach(function(s){
+      var d=Math.abs(1200*Math.log2(f/s.freq));
+      if(d<bd){bd=d;best=s;}
+    });
+    return best;
+  }
+
+  // --- Detección de tono: autocorrelación (ACF2+) ---
+  function autoCorrelate(buf, sampleRate){
+    var SIZE=buf.length, rms=0;
+    for(var i=0;i<SIZE;i++){var v=buf[i];rms+=v*v;}
+    rms=Math.sqrt(rms/SIZE);
+    if(rms<0.01) return -1; // demasiado silencio
+
+    var r1=0, r2=SIZE-1, thres=0.2;
+    for(var i=0;i<SIZE/2;i++){if(Math.abs(buf[i])<thres){r1=i;break;}}
+    for(var i=1;i<SIZE/2;i++){if(Math.abs(buf[SIZE-i])<thres){r2=SIZE-i;break;}}
+    buf=buf.slice(r1,r2); SIZE=buf.length;
+
+    var c=new Array(SIZE).fill(0);
+    for(var i=0;i<SIZE;i++)for(var j=0;j<SIZE-i;j++)c[i]+=buf[j]*buf[j+i];
+
+    var d=0; while(d<SIZE-1 && c[d]>c[d+1])d++;
+    var maxval=-1,maxpos=-1;
+    for(var i=d;i<SIZE;i++){if(c[i]>maxval){maxval=c[i];maxpos=i;}}
+    var T0=maxpos;
+    if(T0<=0) return -1;
+    // interpolación parabólica
+    var x1=c[T0-1]||0, x2=c[T0], x3=c[T0+1]||0;
+    var a=(x1+x3-2*x2)/2, b=(x3-x1)/2;
+    if(a) T0=T0-b/(2*a);
+    return sampleRate/T0;
+  }
+
+  // --- Estado de audio ---
+  var audioCtx=null, analyser=null, srcNode=null, stream=null, raf=null;
+  var buf=new Float32Array(2048);
+  var running=false;
+  var smoothCents=0;
+
+  function resetDisplay(){
+    noteEl.textContent="–"; centsEl.textContent=""; freqEl.textContent="";
+    statusEl.textContent=""; setNeedle(0);
+    stringEls.forEach(function(e){e.classList.remove("target","done");});
+  }
+
+  function loop(){
+    analyser.getFloatTimeDomainData(buf);
+    var f=autoCorrelate(buf, audioCtx.sampleRate);
+    if(f>0 && f<2000 && f>60){
+      var str=nearestString(f);
+      var cents=Math.round(1200*Math.log2(f/str.freq));
+      cents=Math.max(-60,Math.min(60,cents));
+      smoothCents += (cents - smoothCents)*0.35;
+
+      var nt=freqToNote(f);
+      noteEl.innerHTML = nt.name + '<span class="octave">'+nt.octave+'</span>';
+      freqEl.textContent = f.toFixed(1)+" Hz";
+      setNeedle(smoothCents);
+
+      // resalta cuerda objetivo
+      stringEls.forEach(function(e,i){
+        e.classList.toggle("target", STRINGS[i]===str);
+      });
+
+      var abs=Math.abs(smoothCents);
+      if(abs<=5){
+        statusEl.textContent="✓ ¡Afinada! ("+str.name+")";
+        statusEl.style.color="var(--intune)";
+        centsEl.textContent="en el punto";
+        noteEl.style.color="var(--intune)";
+        stringEls.forEach(function(e,i){if(STRINGS[i]===str)e.classList.add("done");});
+      }else if(smoothCents<0){
+        statusEl.textContent="↑ Sube — tensa un poco";
+        statusEl.style.color="var(--flat)";
+        centsEl.textContent=smoothCents.toFixed(0)+" cents (bajo)";
+        noteEl.style.color="var(--flat)";
+      }else{
+        statusEl.textContent="↓ Baja — afloja un poco";
+        statusEl.style.color="var(--sharp)";
+        centsEl.textContent="+"+smoothCents.toFixed(0)+" cents (alto)";
+        noteEl.style.color="var(--sharp)";
+      }
+    }else{
+      statusEl.textContent="Escuchando… pulsa una cuerda";
+      statusEl.style.color="var(--muted)";
+      noteEl.style.color="var(--fg)";
+    }
+    raf=requestAnimationFrame(loop);
+  }
+
+  function stop(){
+    running=false;
+    if(raf)cancelAnimationFrame(raf);
+    if(srcNode)try{srcNode.disconnect();}catch(e){}
+    if(stream)stream.getTracks().forEach(function(t){t.stop();});
+    if(audioCtx)try{audioCtx.close();}catch(e){}
+    audioCtx=null;analyser=null;srcNode=null;stream=null;
+    micBtn.classList.remove("on");
+    micLabel.textContent="Activar micrófono";
+    resetDisplay();
+    statusEl.textContent="Micrófono apagado";
+    statusEl.style.color="var(--muted)";
+  }
+
+  async function start(){
+    errEl.textContent="";
+    try{
+      var Ctx = window.AudioContext||window.webkitAudioContext;
+      audioCtx=new Ctx();
+      if(audioCtx.state==="suspended") await audioCtx.resume();
+      stream=await navigator.mediaDevices.getUserMedia({
+        audio:{echoCancellation:false,autoGainControl:false,noiseSuppression:false},
+        video:false
+      });
+      srcNode=audioCtx.createMediaStreamSource(stream);
+      analyser=audioCtx.createAnalyser();
+      analyser.fftSize=2048;
+      srcNode.connect(analyser);
+      running=true;
+      micBtn.classList.add("on");
+      micLabel.textContent="Detener";
+      statusEl.textContent="Escuchando… pulsa una cuerda";
+      statusEl.style.color="var(--muted)";
+      loop();
+    }catch(e){
+      var msg="No se pudo acceder al micrófono.";
+      if(e && (e.name==="NotAllowedError"||e.name==="SecurityError"))
+        msg="Permiso denegado. Ve a Ajustes → Safari → Micrófono y permite el acceso, o recarga y pulsa «Permitir».";
+      else if(location.protocol!=="https:" && location.hostname!=="localhost")
+        msg="El micrófono necesita una conexión segura (https). Abre esta página desde su URL https://…";
+      errEl.textContent=msg;
+      stop();
+    }
+  }
+
+  micBtn.addEventListener("click", function(){
+    if(running) stop(); else start();
+  });
+
+  resetDisplay();
+})();
+</script>
+</body>
+</html>
