@@ -268,7 +268,10 @@
     {cod:"EFI",   nom:"Ed. Física",        color:"#e8a15a"},
     {cod:"EEC",   nom:"EEC",               color:"#8fc49a"},
     {cod:"REL",   nom:"Religión",          color:"#cfc6a8"},
-    {cod:"Tut",   nom:"Tutoría",           color:"#9fb8d8"}
+    {cod:"Tut",   nom:"Tutoría",           color:"#9fb8d8"},
+    {cod:"AE",    nom:"AE",                color:"#7ececb"},
+    {cod:"VSC",   nom:"Valores (VSC)",     color:"#6fbf8a"},
+    {cod:"PLA",   nom:"Plástica",          color:"#d9b3e8"}
   ];
 
   // Horario de Lara (dia 0..4, slot 0..5) ya rellenado
@@ -280,10 +283,19 @@
     "4_0":"CAS","4_1":"CAS","4_2":"KUN","4_3":"MUS","4_4":"CMNSC","4_5":"REL"
   };
 
+  // Horario de Carli (dia 0..4, slot 0..5)
+  const CARLI = {
+    "0_0":"CMNSC","0_1":"MUS","0_2":"ALE","0_3":"ALE","0_4":"ING","0_5":"EFI",
+    "1_0":"Tut","1_1":"AE","1_2":"MAT","1_3":"ING","1_4":"ALE","1_5":"ALE",
+    "2_0":"MAT","2_1":"MAT","2_2":"ING","2_3":"ING","2_4":"CMNSC","2_5":"CMNSC",
+    "3_0":"CAS","3_1":"CAS","3_2":"MAT","3_3":"VSC","3_4":"PLA","3_5":"EFI",
+    "4_0":"ALE","4_1":"ALE","4_2":"EFI","4_3":"PLA","4_4":"CAS","4_5":"CAS"
+  };
+
   const CLAVE = "horario_colegio_v1";
   let estado = {
     asignaturas: ASIG_DEF.slice(),
-    perfiles: { lara:{cells:Object.assign({},LARA)}, carli:{cells:{}} }
+    perfiles: { lara:{cells:Object.assign({},LARA)}, carli:{cells:Object.assign({},CARLI)} }
   };
   let perfil = "lara";
   let tizaSel = null;       // código de asignatura seleccionada para colocar tocando
@@ -293,8 +305,17 @@
   function guardar(){ try{ localStorage.setItem(CLAVE, JSON.stringify(estado)); }catch(e){} }
   function cargar(){
     try{ const raw=localStorage.getItem(CLAVE); if(raw){ const d=JSON.parse(raw);
-      if(d&&d.asignaturas&&d.perfiles){ estado=d; if(!estado.perfiles.lara)estado.perfiles.lara={cells:{}};
-      if(!estado.perfiles.carli)estado.perfiles.carli={cells:{}}; } } }catch(e){}
+      if(d&&d.asignaturas&&d.perfiles){ estado=d; } } }catch(e){}
+    if(!estado.asignaturas) estado.asignaturas=ASIG_DEF.slice();
+    if(!estado.perfiles) estado.perfiles={};
+    if(!estado.perfiles.lara) estado.perfiles.lara={cells:{}};
+    if(!estado.perfiles.carli) estado.perfiles.carli={cells:{}};
+    // añadir asignaturas por defecto que falten (p.ej. AE, VSC, PLA)
+    ASIG_DEF.forEach(a=>{ if(!estado.asignaturas.find(x=>x.cod===a.cod)) estado.asignaturas.push(Object.assign({},a)); });
+    // si un horario está vacío, lo rellenamos con el del cole
+    if(Object.keys(estado.perfiles.lara.cells||{}).length===0) estado.perfiles.lara.cells=Object.assign({},LARA);
+    if(Object.keys(estado.perfiles.carli.cells||{}).length===0) estado.perfiles.carli.cells=Object.assign({},CARLI);
+    guardar();
   }
   function asigPorCod(cod){ return estado.asignaturas.find(a=>a.cod===cod); }
   function cells(){ return estado.perfiles[perfil].cells; }
