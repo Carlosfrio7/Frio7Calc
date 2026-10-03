@@ -220,7 +220,7 @@
   <div class="contenedor">
     <aside class="banco">
       <h2>📚 Asignaturas</h2>
-      <p class="pista">Toca una asignatura y luego toca una casilla. En el ordenador también puedes arrastrarla. 👉</p>
+      <p class="pista">Arrástrala con el dedo hasta una casilla, o toca la asignatura y luego la casilla. 👉</p>
       <div class="tiza-aviso" id="tizaAviso"></div>
       <div class="asignaturas" id="listaAsig"></div>
       <button class="btn-nueva-asig" id="btnNuevaAsig">➕ Nueva asignatura</button>
@@ -417,6 +417,53 @@
   }
   function cambiarDiaCol(d){ diaCol=(diaCol+d+5)%5; renderDiaCol(); }
 
+  /* ====== ARRASTRE CON EL DEDO (iPad / táctil) ====== */
+  let supClickTactil=false;
+  function realizarSoltarCol(key,payload){
+    if(!payload) return;
+    if(payload.cod){ colocar(key,payload.cod); }
+    else if(payload.desde && payload.desde!==key){ const c=cells()[payload.desde]; if(c){ delete cells()[payload.desde]; cells()[key]=c; guardar(); render(); } }
+  }
+  function ghostDe(el){
+    const g=el.cloneNode(true); const r=el.getBoundingClientRect();
+    g.style.position="fixed"; g.style.left="-9999px"; g.style.top="0"; g.style.zIndex="999";
+    g.style.pointerEvents="none"; g.style.opacity=".92"; g.style.width=r.width+"px"; g.style.margin="0";
+    g.style.transform="translate(-50%,-50%) scale(1.06)"; g.style.boxShadow="0 12px 28px rgba(0,0,0,.32)";
+    document.body.appendChild(g); return g;
+  }
+  function celdaBajo(x,y){ const e=document.elementFromPoint(x,y); return e? e.closest(".celda"):null; }
+  function marcarCeldaDrag(c){ document.querySelectorAll(".celda.drag-over").forEach(n=>n.classList.remove("drag-over")); if(c) c.classList.add("drag-over"); }
+  function arrastreTactil(el, hacerPayload){
+    el.style.touchAction="none";
+    el.addEventListener("pointerdown",(e)=>{
+      if(e.pointerType==="mouse") return;
+      const payload=hacerPayload(); if(!payload) return;
+      const sx=e.clientX, sy=e.clientY; let moviendo=false, ghost=null;
+      const mv=(ev)=>{
+        const dx=ev.clientX-sx, dy=ev.clientY-sy;
+        if(!moviendo){ if(Math.hypot(dx,dy)<9) return; moviendo=true; ghost=ghostDe(el); document.body.style.userSelect="none"; }
+        ev.preventDefault();
+        ghost.style.left=ev.clientX+"px"; ghost.style.top=ev.clientY+"px";
+        marcarCeldaDrag(celdaBajo(ev.clientX,ev.clientY));
+      };
+      const fin=(ev)=>{
+        document.removeEventListener("pointermove",mv);
+        document.removeEventListener("pointerup",fin);
+        document.removeEventListener("pointercancel",fin);
+        document.body.style.userSelect="";
+        if(moviendo){
+          if(ghost) ghost.remove();
+          const c=celdaBajo(ev.clientX,ev.clientY); marcarCeldaDrag(null);
+          supClickTactil=true; setTimeout(()=>{supClickTactil=false;},400);
+          if(c) realizarSoltarCol(c.dataset.key, payload);
+        }
+      };
+      document.addEventListener("pointermove",mv,{passive:false});
+      document.addEventListener("pointerup",fin);
+      document.addEventListener("pointercancel",fin);
+    });
+  }
+
   function crearAsigCel(cod,key){
     const a=asigPorCod(cod);
     const el=document.createElement("div"); el.className="asig-cel"; el.style.background=a.color; el.draggable=true;
@@ -425,6 +472,7 @@
     el.querySelector(".c-x").addEventListener("click",(e)=>{ e.stopPropagation(); delete cells()[key]; guardar(); render(); });
     el.addEventListener("dragstart",(e)=>{ arrastre={desde:key}; e.dataTransfer.effectAllowed="move"; try{e.dataTransfer.setData("text/plain",cod);}catch(_){ } });
     el.addEventListener("dragend",()=>{ arrastre=null; });
+    arrastreTactil(el, ()=>({desde:key}));   // mover con el dedo
     return el;
   }
 
@@ -434,6 +482,7 @@
   function habilitarCelda(celda,key){
     celda.addEventListener("click",(e)=>{
       if(e.target.closest(".c-x")) return;
+      if(supClickTactil) return;
       if(tizaSel){ colocar(key,tizaSel); toast("Colocada "+tizaSel+" ✏️"); }
     });
     celda.addEventListener("dragover",(e)=>{ e.preventDefault(); celda.classList.add("drag-over"); });
@@ -453,9 +502,10 @@
     estado.asignaturas.forEach(a=>{
       const el=document.createElement("div"); el.className="asig"+(tizaSel===a.cod?" sel":""); el.style.background=a.color; el.draggable=true; el.dataset.cod=a.cod;
       el.innerHTML=`<span class="cod">${escap(a.cod)}</span><span class="nom">${escap(a.nom)}</span>`;
-      el.addEventListener("click",()=>{ tizaSel = (tizaSel===a.cod)? null : a.cod; actualizarTiza(); renderBanco(); });
+      el.addEventListener("click",()=>{ if(supClickTactil) return; tizaSel = (tizaSel===a.cod)? null : a.cod; actualizarTiza(); renderBanco(); });
       el.addEventListener("dragstart",(e)=>{ arrastre={cod:a.cod}; e.dataTransfer.effectAllowed="copy"; try{e.dataTransfer.setData("text/plain",a.cod);}catch(_){ } });
       el.addEventListener("dragend",()=>{ arrastre=null; });
+      arrastreTactil(el, ()=>({cod:a.cod}));   // arrastrar con el dedo
       cont.appendChild(el);
     });
   }

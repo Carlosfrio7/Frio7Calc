@@ -790,7 +790,9 @@
           pista.textContent="➕ Toca para añadir";
           celda.appendChild(pista);
         }
-        lista.forEach(t=> celda.appendChild(crearTarjeta(t,di,fr.clave)) );
+        lista.forEach(t=>{ const card=crearTarjeta(t,di,fr.clave);
+          arrastreTactil(card, ()=>({tipo:"mover",origen:{dia:di,franja:fr.clave,id:t.id}}));
+          celda.appendChild(card); });
         grid.appendChild(celda);
       });
     });
@@ -824,6 +826,58 @@
     });
   }
   function cambiarDia(delta){ diaVista=(diaVista+delta+7)%7; renderDia(); }
+
+  /* ====== ARRASTRE CON EL DEDO (iPad / táctil) ====== */
+  let supClickTactil = false;   // evita que un "tap" dispare clic tras arrastrar
+  function realizarSoltar(dia,franja,payload){
+    if(!payload) return;
+    snapshot();
+    let nuevaId=null;
+    if(payload.tipo==="banco"){ const p=payload.plantilla; const t={id:uid(),nombre:p.nombre,emoji:p.emoji,color:p.color,hecha:false}; anadirTarea(dia,franja,t); nuevaId=t.id; }
+    else if(payload.tipo==="mover"){ const o=payload.origen; const t=quitarTarea(o.dia,o.franja,o.id); if(t){ anadirTarea(dia,franja,t); nuevaId=t.id; } }
+    guardar(); render();
+    const ib=document.getElementById("ipadBanco"); if(ib&&ib.classList.contains("abierto")) cerrarIpadBanco();
+    if(nuevaId){ seleccionar(dia,franja,nuevaId); const n=document.querySelector(`.tarjeta[data-id="${nuevaId}"]`); if(n){ const r=n.getBoundingClientRect(); lanzarConfeti(r.left+r.width/2,r.top+r.height/2,14);} }
+  }
+  function ghostDe(el){
+    const g=el.cloneNode(true); const r=el.getBoundingClientRect();
+    g.style.position="fixed"; g.style.left="-9999px"; g.style.top="0"; g.style.zIndex="999";
+    g.style.pointerEvents="none"; g.style.opacity=".92"; g.style.width=r.width+"px"; g.style.margin="0";
+    g.style.transform="translate(-50%,-50%) scale(1.06)"; g.style.boxShadow="0 12px 28px rgba(0,0,0,.32)";
+    document.body.appendChild(g); return g;
+  }
+  function celdaBajo(x,y){ const e=document.elementFromPoint(x,y); return e? e.closest(".celda"):null; }
+  function marcarCeldaDrag(c){ document.querySelectorAll(".celda.drag-over").forEach(n=>n.classList.remove("drag-over")); if(c) c.classList.add("drag-over"); }
+  function arrastreTactil(el, hacerPayload){
+    el.style.touchAction="none";
+    el.addEventListener("pointerdown",(e)=>{
+      if(e.pointerType==="mouse") return;           // el ratón usa el arrastre normal
+      const payload=hacerPayload(); if(!payload) return;
+      const sx=e.clientX, sy=e.clientY; let moviendo=false, ghost=null;
+      const mv=(ev)=>{
+        const dx=ev.clientX-sx, dy=ev.clientY-sy;
+        if(!moviendo){ if(Math.hypot(dx,dy)<9) return; moviendo=true; ghost=ghostDe(el); document.body.style.userSelect="none"; }
+        ev.preventDefault();
+        ghost.style.left=ev.clientX+"px"; ghost.style.top=ev.clientY+"px";
+        marcarCeldaDrag(celdaBajo(ev.clientX,ev.clientY));
+      };
+      const fin=(ev)=>{
+        document.removeEventListener("pointermove",mv);
+        document.removeEventListener("pointerup",fin);
+        document.removeEventListener("pointercancel",fin);
+        document.body.style.userSelect="";
+        if(moviendo){
+          if(ghost) ghost.remove();
+          const c=celdaBajo(ev.clientX,ev.clientY); marcarCeldaDrag(null);
+          supClickTactil=true; setTimeout(()=>{supClickTactil=false;},400);
+          if(c) realizarSoltar(+c.dataset.dia, c.dataset.franja, payload);
+        }
+      };
+      document.addEventListener("pointermove",mv,{passive:false});
+      document.addEventListener("pointerup",fin);
+      document.addEventListener("pointercancel",fin);
+    });
+  }
 
   function crearTarjeta(t,dia,franja){
     const el=document.createElement("div");
@@ -993,6 +1047,7 @@
         p.addEventListener("dragstart",(e)=>{ arrastre={tipo:"banco",plantilla:it};
           e.dataTransfer.effectAllowed="copy"; try{e.dataTransfer.setData("text/plain",it.nombre);}catch(_){}});
         p.addEventListener("dragend",()=>{arrastre=null;});
+        arrastreTactil(p, ()=>({tipo:"banco",plantilla:it}));   // arrastre con el dedo
         g.appendChild(p);
       });
       cont.appendChild(g);
@@ -1254,7 +1309,8 @@
         const p=document.createElement("button"); p.type="button"; p.className="pildora"; p.style.background=it.color;
         p.style.cursor="pointer";
         p.innerHTML=`<span class="emo">${it.emoji}</span><span class="txt">${escapar(it.nombre)}</span>`;
-        p.addEventListener("click",()=>abrirNuevaPlantilla(it));
+        p.addEventListener("click",()=>{ if(supClickTactil) return; abrirNuevaPlantilla(it); });
+        arrastreTactil(p, ()=>({tipo:"banco",plantilla:it}));   // arrastrar desde el menú iPad a una casilla
         g.appendChild(p);
       });
       cont.appendChild(g);
