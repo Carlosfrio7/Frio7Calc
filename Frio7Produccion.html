@@ -919,6 +919,7 @@ function vistaEncargado(){
   $('[data-vista="encargado"]').innerHTML=`
   <div class="mob">
     <div class="sal"><div class="h">Hola, ${esc(yo)}</div><div class="d">${activos.length} objetivo${activos.length!==1?"s":""} asignado${activos.length!==1?"s":""} · menos de 2 min al día</div></div>
+    <div class="hint" style="margin-bottom:14px">${ICON("info",16)}<span>Las <b>horas</b> se registran desde tu parte de Fixner. Aquí solo marcas avance, bloqueos, material y trabajo terminado.</span></div>
     ${activos.map(mCard).join("")||`<div class="empty">${ICON("checkCircle",40)}<p>No tienes objetivos activos.</p></div>`}
     ${hechos.length?`<div class="mini" style="margin:18px 0 8px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Terminados</div>`+hechos.map(mCard).join(""):""}
   </div>`;
@@ -931,7 +932,7 @@ function mCard(c){
       <div class="ti">${esc(c.titulo)}</div><div class="ob">${esc(p?.nombre||"")} · Semana +${c.semana}</div></div>
     <div class="horas">
       <div class="hbox"><div class="n">${c.horas_objetivo}</div><div class="l">Objetivo</div></div>
-      <div class="hbox"><div class="n">${c.horas_reales}</div><div class="l">Consumidas</div></div>
+      <div class="hbox"><div class="n">${c.horas_reales}</div><div class="l">Consum. · Fixner</div></div>
       <div class="hbox rest"><div class="n">${rest}</div><div class="l">Restantes</div></div></div>
     <div class="mavance"><div class="barwrap" style="min-width:0"><div class="bar"><i style="width:${c.avance}%"></i></div><b>${c.avance}%</b></div></div>
     ${term?`<div style="padding:0 15px 15px"><span class="chip g">${ICON("check",13)} Terminado</span></div>`:`
@@ -949,9 +950,8 @@ function mAvance(id){
   modal({titulo:"Actualizar avance",cuerpo:`
     <div class="field"><label>Avance físico</label><div class="seg" id="seg_av">${[0,25,50,75,100].map(v=>`<button data-v="${v}" class="${c.avance===v?'on':''}">${v}%</button>`).join("")}</div>
       <input type="range" id="f_av" min="0" max="100" step="5" value="${c.avance}" style="width:100%;margin-top:12px"></div>
-    <div class="field"><label>Horas consumidas hasta ahora</label><input type="number" id="f_hr" value="${c.horas_reales}" min="0"></div>
-    <div class="mini">Objetivo: ${fmtH(c.horas_objetivo)}</div>`,
-    ok:"Guardar",onOk:()=>{c.avance=+$("#f_av").value;c.horas_reales=+$("#f_hr").value||0;if(c.estado==="planificado"||c.estado==="previsto")c.estado="curso";guardar();vistaEncargado();toast("Avance actualizado");return true;},
+    <div class="hint">${ICON("info",16)}<span>Marca cuánto has avanzado. Las <b>horas</b> no se meten aquí: se registran solas desde tu parte de Fixner.</span></div>`,
+    ok:"Guardar",onOk:()=>{c.avance=+$("#f_av").value;if(c.estado==="planificado"||c.estado==="previsto")c.estado="curso";guardar();vistaEncargado();toast("Avance actualizado");return true;},
     after:()=>{$$("#seg_av button").forEach(b=>b.onclick=()=>{$("#f_av").value=b.dataset.v;$$("#seg_av button").forEach(x=>x.classList.remove("on"));b.classList.add("on");});$("#f_av").oninput=()=>$$("#seg_av button").forEach(x=>x.classList.toggle("on",+x.dataset.v===+$("#f_av").value));}});
 }
 function mBloqueo(id){
@@ -979,12 +979,12 @@ function mTerminar(id){
     <div class="field"><label>¿Trabajo completamente terminado?</label><div class="seg" id="q1"><button class="si" data-v="si">Sí</button><button class="no" data-v="no">No</button></div></div>
     <div class="field"><label>¿Pruebas realizadas?</label><div class="seg" id="q2"><button class="si" data-v="si">Sí</button><button class="no" data-v="no">No</button><button data-v="na">No aplica</button></div></div>
     <div class="field"><label>¿Existe retrabajo?</label><div class="seg" id="q3"><button class="si" data-v="si">Sí</button><button class="no" data-v="no">No</button></div></div>
-    <div class="field"><label>Horas reales finales</label><input type="number" id="f_hf" value="${c.horas_reales||c.horas_objetivo}" min="0"></div>
-    <div class="field"><label>Evidencia (según tipo de trabajo)</label><input type="file" accept="image/*" capture="environment" id="f_foto"></div>`,
+    <div class="field"><label>Evidencia (según tipo de trabajo)</label><input type="file" accept="image/*" capture="environment" id="f_foto"></div>
+    <div class="hint">${ICON("info",16)}<span>Las horas reales se toman de tu parte de Fixner; no hay que teclearlas.</span></div>`,
     ok:"Confirmar terminado",onOk:()=>{
       const q1=$("#q1 button.on")?.dataset.v,q3=$("#q3 button.on")?.dataset.v;
       if(q1!=="si"){toast("Solo se marca terminado si el trabajo está completo","alert");return false;}
-      c.horas_reales=+$("#f_hf").value||c.horas_reales;c.avance=100;c.estado="terminado";
+      c.avance=100;c.estado="terminado";
       if(c.horas_reales>c.horas_objetivo){const vH=c.horas_reales-c.horas_objetivo;toast(`Terminado · desviación +${fmtH(vH)}`,"trending");DB.desviaciones.push({id:uid("d"),obra:c.obra,familia:c.familia,titulo:c.titulo,target:c.horas_objetivo,real:c.horas_reales,causa:"otro",nota:"Pendiente de clasificar",fecha:ISO(hoy())});}
       else toast("Objetivo terminado");
       if(q3==="si")DB.retrabajos.push({id:uid("rw"),obra:c.obra,familia:c.familia,responsable:c.responsable,desc:"Retrabajo en "+c.titulo,horas:0,tipo:"otro",origen:"interno",fecha:ISO(hoy())});
