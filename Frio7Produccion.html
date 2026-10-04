@@ -1,0 +1,1485 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Frío 7 · Producción</title>
+<meta name="theme-color" content="#0b3b63" />
+<meta name="apple-mobile-web-app-title" content="Frío 7 Producción" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<!--
+  FRÍO 7 · SISTEMA OPERATIVO DE PRODUCCIÓN  (MVP piloto "Espacio Joven")
+  ---------------------------------------------------------------------
+  App de un solo archivo. Sin dependencias ni build.
+  Persistencia: localStorage (clave FRIO7_PROD_V1).
+  El esquema de datos está calcado del modelo Supabase del PRD (sección 29)
+  para que migrar a Supabase después sea directo.
+
+  Patrones de interacción reutilizados del "planifiqueitor":
+   - arrastrar y soltar con ratón (HTML5 drag) Y con dedo (pointer + ghost)
+   - píldoras/tarjetas, menús, botones grandes, vista móvil
+-->
+<style>
+  :root{
+    /* Marca Frío 7 — profesional, frío/HVAC */
+    --azul:#0b3b63;          /* azul profundo */
+    --azul-2:#12507f;
+    --cian:#17b6c7;          /* acento frío */
+    --cian-claro:#d4f3f6;
+    --tinta:#0f1c2e;         /* texto principal */
+    --tinta-suave:#5b6b80;   /* texto secundario */
+    --linea:#e4e9f0;
+    --panel:#ffffff;
+    --fondo:#eef2f7;
+    --fondo-2:#f7f9fc;
+
+    /* Semáforo (configurable en Ajustes, estos son los colores base) */
+    --verde:#1aa06d;  --verde-bg:#e3f6ed;
+    --ambar:#e0922b;  --ambar-bg:#fdf1dd;
+    --rojo:#d64550;   --rojo-bg:#fde7e9;
+    --gris:#8a97a8;   --gris-bg:#eef1f5;
+
+    --sombra:0 6px 20px rgba(15,28,46,.08);
+    --sombra-fuerte:0 16px 40px rgba(15,28,46,.18);
+    --radio:16px;
+    --radio-sm:11px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:'Inter',system-ui,-apple-system,sans-serif;
+    color:var(--tinta);
+    background:var(--fondo);
+    min-height:100vh;
+    -webkit-text-size-adjust:100%;
+  }
+  h1,h2,h3,h4,.ff{font-family:'Sora',sans-serif;}
+  button{font-family:inherit;}
+  a{color:var(--azul-2);}
+  ::selection{background:var(--cian-claro);}
+
+  /* ============ CABECERA ============ */
+  .top{
+    position:sticky;top:0;z-index:50;
+    display:flex;align-items:center;gap:14px;
+    padding:12px 18px;color:#fff;
+    background:linear-gradient(110deg,var(--azul),var(--azul-2) 60%,#15608f);
+    box-shadow:var(--sombra);
+    padding-top:max(12px,env(safe-area-inset-top));
+  }
+  .marca{display:flex;align-items:center;gap:12px;min-width:0;}
+  .logo{
+    width:46px;height:46px;border-radius:13px;flex:0 0 auto;
+    display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(135deg,#fff,#dff6f8);
+    color:var(--azul);font-family:'Sora';font-weight:800;font-size:19px;
+    box-shadow:inset 0 0 0 2px rgba(255,255,255,.6);
+  }
+  .marca .n{font-family:'Sora';font-weight:800;font-size:19px;line-height:1;letter-spacing:.2px;white-space:nowrap;}
+  .marca .s{font-size:12px;opacity:.82;font-weight:600;margin-top:2px;}
+  .top .sep{flex:1;}
+
+  .rolbox{display:flex;align-items:center;gap:8px;}
+  .rolbox label{font-size:12px;opacity:.85;font-weight:600;display:none;}
+  select.rol, .obra-sel{
+    font-family:inherit;font-weight:700;font-size:14px;color:var(--azul);
+    background:#fff;border:none;border-radius:11px;padding:9px 12px;cursor:pointer;
+    box-shadow:0 3px 10px rgba(0,0,0,.15);max-width:48vw;
+  }
+  .top .ico-btn{
+    width:40px;height:40px;border-radius:11px;border:none;cursor:pointer;
+    background:rgba(255,255,255,.16);color:#fff;font-size:17px;
+    display:flex;align-items:center;justify-content:center;
+    transition:background .15s;
+  }
+  .top .ico-btn:hover{background:rgba(255,255,255,.28);}
+
+  /* ============ NAV ============ */
+  .nav{
+    display:flex;gap:4px;overflow-x:auto;
+    background:var(--panel);border-bottom:1px solid var(--linea);
+    padding:0 10px;position:sticky;top:70px;z-index:40;
+    scrollbar-width:none;
+  }
+  .nav::-webkit-scrollbar{display:none;}
+  .nav button{
+    border:none;background:none;cursor:pointer;white-space:nowrap;
+    padding:14px 16px;font-size:14px;font-weight:700;color:var(--tinta-suave);
+    border-bottom:3px solid transparent;transition:color .15s,border-color .15s;
+    display:flex;align-items:center;gap:7px;
+  }
+  .nav button:hover{color:var(--azul);}
+  .nav button.on{color:var(--azul);border-bottom-color:var(--cian);}
+  .nav button .em{font-size:16px;}
+
+  /* ============ LAYOUT ============ */
+  .wrap{max-width:1500px;margin:0 auto;padding:20px 18px 60px;}
+  .vista{display:none;animation:fade .25s ease;}
+  .vista.on{display:block;}
+  @keyframes fade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+
+  .pagehead{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;margin:0 0 18px;}
+  .pagehead h2{margin:0;font-size:24px;font-weight:800;letter-spacing:-.3px;}
+  .pagehead .desc{color:var(--tinta-suave);font-size:14px;font-weight:500;margin-top:3px;}
+  .pagehead .sep{flex:1;}
+
+  /* ============ TARJETAS KPI ============ */
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:14px;margin-bottom:22px;}
+  .kpi{
+    background:var(--panel);border:1px solid var(--linea);border-radius:var(--radio);
+    padding:16px 18px;box-shadow:var(--sombra);position:relative;overflow:hidden;
+  }
+  .kpi .lab{font-size:12.5px;font-weight:700;color:var(--tinta-suave);text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:6px;}
+  .kpi .val{font-family:'Sora';font-weight:800;font-size:30px;line-height:1.05;margin-top:9px;letter-spacing:-.5px;}
+  .kpi .val small{font-size:15px;font-weight:700;color:var(--tinta-suave);}
+  .kpi .sub{font-size:12.5px;color:var(--tinta-suave);margin-top:5px;font-weight:600;}
+  .kpi .borde{position:absolute;left:0;top:0;bottom:0;width:5px;}
+  .kpi.g .borde{background:var(--verde);} .kpi.w .borde{background:var(--ambar);}
+  .kpi.c .borde{background:var(--rojo);} .kpi.n .borde{background:var(--cian);}
+
+  /* ============ PANELES ============ */
+  .panel{
+    background:var(--panel);border:1px solid var(--linea);border-radius:var(--radio);
+    box-shadow:var(--sombra);margin-bottom:20px;overflow:hidden;
+  }
+  .panel > .cab{
+    display:flex;align-items:center;gap:10px;padding:15px 18px;border-bottom:1px solid var(--linea);
+    background:var(--fondo-2);
+  }
+  .panel > .cab h3{margin:0;font-size:16px;font-weight:800;display:flex;align-items:center;gap:8px;}
+  .panel > .cab .sep{flex:1;}
+  .panel > .cuerpo{padding:18px;}
+  .panel > .cuerpo.flush{padding:0;}
+
+  /* ============ TABLAS ============ */
+  .tabla-wrap{overflow-x:auto;}
+  table.data{width:100%;border-collapse:collapse;font-size:13.5px;min-width:720px;}
+  table.data th,table.data td{padding:12px 14px;text-align:left;border-bottom:1px solid var(--linea);white-space:nowrap;}
+  table.data th{
+    font-size:11.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--tinta-suave);
+    font-weight:800;cursor:pointer;user-select:none;position:sticky;top:0;background:var(--fondo-2);
+  }
+  table.data th .arr{opacity:.4;font-size:10px;}
+  table.data th.sort .arr{opacity:1;color:var(--azul);}
+  table.data tbody tr{cursor:pointer;transition:background .12s;}
+  table.data tbody tr:hover{background:var(--cian-claro);}
+  table.data td.obra-cell{font-weight:800;color:var(--azul);}
+  table.data td.num{font-variant-numeric:tabular-nums;font-weight:700;}
+
+  /* ============ CHIPS / BADGES ============ */
+  .chip{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:800;line-height:1;}
+  .chip.g{background:var(--verde-bg);color:var(--verde);} .chip.w{background:var(--ambar-bg);color:var(--ambar);}
+  .chip.c{background:var(--rojo-bg);color:var(--rojo);} .chip.n{background:var(--cian-claro);color:#0a7883;}
+  .chip.x{background:var(--gris-bg);color:var(--gris);}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+  .dot.g{background:var(--verde);} .dot.w{background:var(--ambar);} .dot.c{background:var(--rojo);} .dot.x{background:var(--gris);}
+
+  /* barra de avance */
+  .bar{height:8px;border-radius:999px;background:var(--linea);overflow:hidden;min-width:70px;}
+  .bar > i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--cian),var(--azul-2));}
+  .barwrap{display:flex;align-items:center;gap:9px;}
+  .barwrap b{font-size:12.5px;font-variant-numeric:tabular-nums;min-width:38px;}
+
+  /* ============ BOTONES ============ */
+  .btn{
+    border:none;cursor:pointer;border-radius:12px;padding:11px 16px;font-weight:700;font-size:14px;
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    transition:transform .1s,box-shadow .12s,filter .12s;
+  }
+  .btn:active{transform:translateY(1px);}
+  .btn-pri{background:linear-gradient(120deg,var(--azul),var(--azul-2));color:#fff;box-shadow:0 5px 14px rgba(11,59,99,.3);}
+  .btn-pri:hover{filter:brightness(1.07);}
+  .btn-cian{background:linear-gradient(120deg,var(--cian),#0a94a3);color:#fff;box-shadow:0 5px 14px rgba(23,182,199,.3);}
+  .btn-ghost{background:#fff;color:var(--azul);border:1.5px solid var(--linea);}
+  .btn-ghost:hover{border-color:var(--cian);}
+  .btn-sm{padding:8px 12px;font-size:13px;border-radius:10px;}
+  .btn-blk{width:100%;}
+
+  /* ============ PESTAÑAS OBRA ============ */
+  .subtabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--linea);margin:0 0 18px;scrollbar-width:none;}
+  .subtabs::-webkit-scrollbar{display:none;}
+  .subtabs button{
+    border:none;background:none;cursor:pointer;white-space:nowrap;padding:11px 15px;
+    font-size:13.5px;font-weight:700;color:var(--tinta-suave);border-bottom:3px solid transparent;
+  }
+  .subtabs button.on{color:var(--azul);border-bottom-color:var(--cian);}
+  .subpanel{display:none;} .subpanel.on{display:block;}
+
+  /* familias / barras de horas */
+  .fam-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--linea);}
+  .fam-row:last-child{border-bottom:none;}
+  .fam-row .nom{font-weight:700;min-width:150px;display:flex;align-items:center;gap:8px;}
+  .fam-row .emo{font-size:17px;}
+  .fam-row .track{flex:1;min-width:120px;}
+  .fam-row .cifra{font-variant-numeric:tabular-nums;font-weight:800;min-width:110px;text-align:right;font-size:13px;}
+  .track2{height:18px;border-radius:7px;background:var(--linea);overflow:hidden;position:relative;}
+  .track2 > i{display:block;height:100%;}
+
+  /* ============ LOOKAHEAD BOARD ============ */
+  .lookahead{display:grid;grid-template-columns:repeat(4,minmax(220px,1fr));gap:14px;}
+  .semana{
+    background:var(--fondo-2);border:1px solid var(--linea);border-radius:var(--radio);
+    display:flex;flex-direction:column;min-height:180px;
+  }
+  .semana > .cab{padding:12px 14px;border-bottom:1px solid var(--linea);}
+  .semana > .cab .et{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--tinta-suave);}
+  .semana > .cab .rango{font-weight:800;font-size:14px;margin-top:2px;}
+  .semana.compromiso{border-color:var(--cian);box-shadow:0 0 0 2px var(--cian-claro) inset;}
+  .semana.compromiso > .cab .et{color:#0a7883;}
+  .semana .zona{padding:10px;display:flex;flex-direction:column;gap:9px;flex:1;transition:background .12s;}
+  .semana .zona.drag-over{background:var(--cian-claro);outline:2px dashed var(--cian);outline-offset:-5px;border-radius:12px;}
+  .semana .vacia{color:var(--tinta-suave);font-size:12.5px;text-align:center;padding:14px 6px;font-weight:600;opacity:.8;}
+
+  .obj-card{
+    background:#fff;border:1px solid var(--linea);border-left:5px solid var(--cian);border-radius:12px;
+    padding:11px 12px;box-shadow:0 3px 9px rgba(15,28,46,.06);cursor:grab;user-select:none;
+    transition:transform .1s,box-shadow .1s;
+  }
+  .obj-card:hover{transform:translateY(-2px);box-shadow:0 8px 18px rgba(15,28,46,.12);}
+  .obj-card:active{cursor:grabbing;}
+  .obj-card.rdy{border-left-color:var(--verde);} .obj-card.wrn{border-left-color:var(--ambar);} .obj-card.blk{border-left-color:var(--rojo);}
+  .obj-card .fam{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--tinta-suave);}
+  .obj-card .ti{font-weight:700;font-size:13.5px;margin:3px 0 7px;line-height:1.25;}
+  .obj-card .meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--tinta-suave);font-weight:700;}
+  .obj-card .hrs{font-variant-numeric:tabular-nums;}
+
+  /* ============ VISTA MÓVIL ENCARGADO ============ */
+  .mob{max-width:560px;margin:0 auto;}
+  .mob .sal{background:linear-gradient(120deg,var(--azul),#15608f);color:#fff;border-radius:var(--radio);padding:18px;box-shadow:var(--sombra);margin-bottom:16px;}
+  .mob .sal .h{font-family:'Sora';font-weight:800;font-size:19px;}
+  .mob .sal .d{opacity:.85;font-size:13px;margin-top:3px;font-weight:600;}
+  .mcard{background:var(--panel);border:1px solid var(--linea);border-radius:var(--radio);box-shadow:var(--sombra);margin-bottom:14px;overflow:hidden;}
+  .mcard .top2{padding:15px 16px 12px;border-left:6px solid var(--cian);}
+  .mcard.rdy .top2{border-left-color:var(--verde);} .mcard.wrn .top2{border-left-color:var(--ambar);} .mcard.blk .top2{border-left-color:var(--rojo);}
+  .mcard .fam{font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--tinta-suave);display:flex;align-items:center;gap:7px;}
+  .mcard .ti{font-family:'Sora';font-weight:700;font-size:17px;margin:5px 0 2px;line-height:1.25;}
+  .mcard .ob{font-size:13px;color:var(--tinta-suave);font-weight:600;}
+  .mcard .horas{display:flex;gap:10px;padding:0 16px 14px;}
+  .mcard .hbox{flex:1;background:var(--fondo-2);border-radius:12px;padding:10px;text-align:center;}
+  .mcard .hbox .n{font-family:'Sora';font-weight:800;font-size:20px;}
+  .mcard .hbox .l{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--tinta-suave);margin-top:2px;}
+  .mcard .hbox.rest .n{color:var(--azul);}
+  .mcard .acc{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--linea);border-top:1px solid var(--linea);}
+  .mcard .acc button{
+    border:none;background:#fff;cursor:pointer;padding:15px 8px;font-weight:800;font-size:14px;
+    display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--tinta);transition:background .12s;
+  }
+  .mcard .acc button .e{font-size:22px;}
+  .mcard .acc button:hover{background:var(--fondo-2);}
+  .mcard .acc button.fin{color:var(--verde);} .mcard .acc button.blo{color:var(--rojo);}
+  .mavance{padding:0 16px 14px;}
+
+  /* ============ MODAL ============ */
+  .ov{position:fixed;inset:0;background:rgba(15,28,46,.5);backdrop-filter:blur(3px);z-index:100;display:none;align-items:flex-end;justify-content:center;}
+  .ov.on{display:flex;}
+  @media(min-width:640px){.ov{align-items:center;}}
+  .modal{
+    background:var(--panel);width:100%;max-width:520px;max-height:92vh;overflow-y:auto;
+    border-radius:20px 20px 0 0;box-shadow:var(--sombra-fuerte);animation:up .25s ease;
+    padding-bottom:max(0px,env(safe-area-inset-bottom));
+  }
+  @media(min-width:640px){.modal{border-radius:20px;}}
+  @keyframes up{from{transform:translateY(40px);opacity:.5;}to{transform:none;opacity:1;}}
+  .modal .mh{display:flex;align-items:center;gap:10px;padding:17px 20px;border-bottom:1px solid var(--linea);position:sticky;top:0;background:var(--panel);}
+  .modal .mh h3{margin:0;font-size:17px;font-weight:800;}
+  .modal .mh .sep{flex:1;}
+  .modal .mh .x{width:34px;height:34px;border-radius:10px;border:none;background:var(--fondo);cursor:pointer;font-size:17px;color:var(--tinta-suave);}
+  .modal .mb{padding:20px;}
+  .modal .mf{padding:14px 20px;border-top:1px solid var(--linea);display:flex;gap:10px;justify-content:flex-end;position:sticky;bottom:0;background:var(--panel);}
+
+  .field{margin-bottom:15px;}
+  .field label{display:block;font-size:12.5px;font-weight:800;color:var(--tinta-suave);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px;}
+  .field input,.field select,.field textarea{
+    width:100%;font-family:inherit;font-size:15px;color:var(--tinta);
+    border:1.5px solid var(--linea);border-radius:11px;padding:11px 13px;background:#fff;
+  }
+  .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--cian);box-shadow:0 0 0 3px var(--cian-claro);}
+  .field textarea{resize:vertical;min-height:72px;}
+  .field .row{display:flex;gap:10px;} .field .row > *{flex:1;}
+  .seg{display:flex;gap:8px;flex-wrap:wrap;}
+  .seg button{flex:1;min-width:84px;border:1.5px solid var(--linea);background:#fff;border-radius:11px;padding:12px 8px;font-weight:800;font-size:14px;cursor:pointer;color:var(--tinta-suave);}
+  .seg button.on{border-color:var(--cian);background:var(--cian-claro);color:#0a7883;}
+  .seg button.si.on{border-color:var(--verde);background:var(--verde-bg);color:var(--verde);}
+  .seg button.no.on{border-color:var(--rojo);background:var(--rojo-bg);color:var(--rojo);}
+
+  .hint{font-size:12.5px;color:var(--tinta-suave);background:var(--fondo-2);border:1px solid var(--linea);border-radius:11px;padding:11px 13px;font-weight:600;line-height:1.4;}
+  .hint.warn{background:var(--ambar-bg);border-color:#f3dcb3;color:#9a6512;}
+  .hint.bad{background:var(--rojo-bg);border-color:#f3c4c8;color:#a62f39;}
+
+  .empty{text-align:center;padding:50px 20px;color:var(--tinta-suave);}
+  .empty .e{font-size:44px;}
+  .empty p{font-weight:600;margin:10px 0 0;}
+
+  /* toast */
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(80px);z-index:200;
+    background:var(--tinta);color:#fff;padding:13px 20px;border-radius:13px;font-weight:700;font-size:14px;
+    box-shadow:var(--sombra-fuerte);opacity:0;transition:transform .3s,opacity .3s;max-width:90vw;}
+  .toast.on{transform:translateX(-50%) translateY(0);opacity:1;}
+
+  .ghost-drag{position:fixed;z-index:999;pointer-events:none;opacity:.95;transform:translate(-50%,-50%) scale(1.04) rotate(-1.5deg);box-shadow:var(--sombra-fuerte);}
+
+  .solo-mobile{display:none;} .no-mobile{display:block;}
+  @media(max-width:760px){
+    .lookahead{grid-template-columns:1fr;}
+    .pagehead h2{font-size:21px;}
+    .marca .s{display:none;}
+  }
+  .mini{font-size:12px;color:var(--tinta-suave);font-weight:600;}
+  .pill-info{display:inline-flex;gap:6px;align-items:center;background:var(--fondo-2);border:1px solid var(--linea);border-radius:999px;padding:5px 11px;font-size:12.5px;font-weight:700;}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="marca">
+    <div class="logo">F7</div>
+    <div>
+      <div class="n">Frío 7 · Producción</div>
+      <div class="s">Sistema operativo de producción</div>
+    </div>
+  </div>
+  <div class="sep"></div>
+  <div class="rolbox">
+    <select id="rolSel" class="rol" title="Cambiar de rol (demo)"></select>
+  </div>
+  <button class="ico-btn" id="btnAjustes" title="Ajustes de semáforos">⚙️</button>
+  <button class="ico-btn" id="btnReset" title="Reiniciar datos de demo">↺</button>
+</header>
+
+<nav class="nav" id="nav"></nav>
+
+<main class="wrap">
+  <!-- Dashboard Dirección -->
+  <section class="vista" data-vista="direccion"></section>
+  <!-- Dashboard Producción -->
+  <section class="vista" data-vista="produccion"></section>
+  <!-- Detalle de obra -->
+  <section class="vista" data-vista="obra"></section>
+  <!-- Encargado (móvil) -->
+  <section class="vista" data-vista="encargado"></section>
+  <!-- Ajustes -->
+  <section class="vista" data-vista="ajustes"></section>
+</main>
+
+<div class="ov" id="ov"><div class="modal" id="modal"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===================================================================
+   FRÍO 7 · PRODUCCIÓN — lógica
+   =================================================================== */
+"use strict";
+
+/* ---------- utilidades ---------- */
+const $  = (s,c=document)=>c.querySelector(s);
+const $$ = (s,c=document)=>Array.from(c.querySelectorAll(s));
+const uid = (p="id")=>p+"_"+Math.random().toString(36).slice(2,9);
+const esc = s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmtH = n=>{ n=Math.round((+n||0)); return n.toLocaleString("es-ES")+" h"; };
+const fmtPct = n=> (n>=0?"":"") + (Math.round((+n||0)*10)/10).toLocaleString("es-ES")+" %";
+const hoy = ()=> new Date();
+const ISO = d=> d.toISOString().slice(0,10);
+function fDMA(iso){ if(!iso) return "—"; const [y,m,d]=iso.split("-"); return `${d}/${m}/${y.slice(2)}`; }
+function diasEntre(a,b){ return Math.round((new Date(b)-new Date(a))/86400000); }
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("on"); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove("on"),2200); }
+
+/* ---------- catálogo de familias productivas (sección 6) ---------- */
+const FAMILIAS = [
+  {id:"hidraulica", nom:"Hidráulica / tuberías", emo:"🔧"},
+  {id:"salamaquinas", nom:"Sala de máquinas", emo:"🏭"},
+  {id:"refrigerante", nom:"Refrigerante / VRV", emo:"❄️"},
+  {id:"montaje", nom:"Montaje de equipos", emo:"🛠️"},
+  {id:"electricidad", nom:"Electricidad", emo:"⚡"},
+  {id:"control", nom:"Control", emo:"🎛️"},
+  {id:"desagues", nom:"Desagües", emo:"💧"},
+  {id:"conductos", nom:"Conductos", emo:"🌬️"},
+  {id:"difusion", nom:"Difusión / rejillas", emo:"🔲"},
+  {id:"aislamiento", nom:"Aislamiento", emo:"🧥"},
+  {id:"falsostechos", nom:"Falsos techos", emo:"🔳"},
+  {id:"pruebas", nom:"Pruebas", emo:"🧪"},
+  {id:"puestamarcha", nom:"Puesta en marcha", emo:"🚀"},
+  {id:"remates", nom:"Remates", emo:"✨"},
+  {id:"otros", nom:"Otros", emo:"📦"},
+];
+const famById = id => FAMILIAS.find(f=>f.id===id) || {id, nom:id, emo:"📦"};
+
+/* ---------- roles (sección 3) ---------- */
+const ROLES = {
+  direccion:   {nom:"Dirección (Carlos)", vistas:["direccion","produccion","obra","ajustes"]},
+  produccion:  {nom:"Resp. Producción (Ari)", vistas:["produccion","direccion","obra","ajustes"]},
+  ingeniero:   {nom:"Ingeniero de obra", vistas:["produccion","obra","ajustes"]},
+  encargado:   {nom:"Encargado / Oficial (Marcos)", vistas:["encargado"]},
+};
+const NAV_META = {
+  direccion:  {et:"Dirección",  em:"📊"},
+  produccion: {et:"Producción", em:"🏗️"},
+  obra:       {et:"Obra",       em:"📁"},
+  encargado:  {et:"Mi trabajo", em:"📱"},
+  ajustes:    {et:"Ajustes",    em:"⚙️"},
+};
+
+/* ===================================================================
+   MODELO DE DATOS  (calcado del esquema Supabase, sección 29)
+   Persistencia en localStorage.
+   =================================================================== */
+const LS_KEY = "FRIO7_PROD_V1";
+let DB = null;
+
+function guardar(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(DB)); }catch(e){ console.warn("No se pudo guardar",e); } }
+function cargar(){
+  try{ const raw=localStorage.getItem(LS_KEY); if(raw){ DB=JSON.parse(raw); return true; } }catch(e){}
+  return false;
+}
+
+/* ---------- datos semilla: piloto ESPACIO JOVEN (secciones 7, 39) ---------- */
+function semilla(){
+  const t = hoy();
+  const lunes = new Date(t); lunes.setDate(t.getDate() - ((t.getDay()+6)%7)); // lunes de esta semana
+  const semStart = n => { const d=new Date(lunes); d.setDate(lunes.getDate()+7*n); return ISO(d); };
+  const semEnd   = n => { const d=new Date(lunes); d.setDate(lunes.getDate()+7*n+4); return ISO(d); };
+
+  const audit = {created_by:"seed",created_at:ISO(t),updated_by:"seed",updated_at:ISO(t)};
+
+  const proyectos = [
+    {
+      id:"obra_ej", codigo:"EJ-24", nombre:"Espacio Joven", cliente:"Ayuntamiento",
+      ingeniero:"Laura G.", responsable:"Ari",
+      fecha_inicio:semStart(-3), fecha_fin_contractual:semEnd(8),
+      baseline_horas:3000, ...audit,
+      // bolsa de horas por familia (project_baselines, sección 7)
+      baselines:[
+        {familia:"refrigerante",  horas:850},
+        {familia:"conductos",     horas:420},
+        {familia:"electricidad",  horas:620},
+        {familia:"falsostechos",  horas:400},
+        {familia:"puestamarcha",  horas:180},
+        {familia:"otros",         horas:530},
+      ],
+      // plan maestro (master_schedule, sección 8)
+      plan:[
+        {id:uid("ph"),familia:"refrigerante", ini:semStart(-3),fin:semStart(1),estado:"curso",avance:70},
+        {id:uid("ph"),familia:"electricidad", ini:semStart(-1),fin:semStart(3),estado:"curso",avance:35},
+        {id:uid("ph"),familia:"conductos",    ini:semStart(0), fin:semStart(4),estado:"curso",avance:20},
+        {id:uid("ph"),familia:"falsostechos", ini:semStart(2), fin:semStart(6),estado:"pend",avance:0},
+        {id:uid("ph"),familia:"pruebas",      ini:semStart(6), fin:semStart(7),estado:"pend",avance:0},
+        {id:uid("ph"),familia:"puestamarcha", ini:semStart(7), fin:semStart(8),estado:"pend",avance:0},
+      ],
+      certificacion:{objetivo_mes:120000, prevista:104000}, // € (sección 21)
+    },
+    {
+      id:"obra_cc", codigo:"CC-23", nombre:"Centro Comercial Norte", cliente:"Inmobiliaria Sur",
+      ingeniero:"Javier M.", responsable:"Ari",
+      fecha_inicio:semStart(-6), fecha_fin_contractual:semEnd(4),
+      baseline_horas:5400, ...audit,
+      baselines:[
+        {familia:"refrigerante", horas:1600},
+        {familia:"conductos",    horas:1100},
+        {familia:"salamaquinas", horas:900},
+        {familia:"electricidad", horas:700},
+        {familia:"control",      horas:500},
+        {familia:"otros",        horas:600},
+      ],
+      plan:[
+        {id:uid("ph"),familia:"salamaquinas",ini:semStart(-6),fin:semStart(-1),estado:"fin",avance:100},
+        {id:uid("ph"),familia:"refrigerante",ini:semStart(-4),fin:semStart(2), estado:"curso",avance:78},
+        {id:uid("ph"),familia:"conductos",   ini:semStart(-2),fin:semStart(3), estado:"curso",avance:55},
+        {id:uid("ph"),familia:"control",     ini:semStart(2), fin:semStart(4), estado:"pend",avance:0},
+      ],
+      certificacion:{objetivo_mes:210000, prevista:225000},
+    },
+    {
+      id:"obra_ho", codigo:"HO-07", nombre:"Hospital Comarcal — Ala B", cliente:"SAS",
+      ingeniero:"Laura G.", responsable:"Ari",
+      fecha_inicio:semStart(-2), fecha_fin_contractual:semEnd(12),
+      baseline_horas:4200, ...audit,
+      baselines:[
+        {familia:"refrigerante", horas:1200},
+        {familia:"conductos",    horas:900},
+        {familia:"hidraulica",   horas:800},
+        {familia:"electricidad", horas:600},
+        {familia:"difusion",     horas:300},
+        {familia:"otros",        horas:400},
+      ],
+      plan:[
+        {id:uid("ph"),familia:"hidraulica",  ini:semStart(-2),fin:semStart(3),estado:"curso",avance:40},
+        {id:uid("ph"),familia:"refrigerante",ini:semStart(0), fin:semStart(6),estado:"curso",avance:15},
+      ],
+      certificacion:{objetivo_mes:95000, prevista:92000},
+    },
+  ];
+
+  // compromisos / objetivos (weekly_commitments + relaciones, secciones 10–12)
+  const comp = [
+    {
+      id:uid("c"), obra:"obra_ej", familia:"electricidad",
+      titulo:"Canalizaciones y alimentación Zona A", responsable:"Marcos",
+      cuadrilla:["Marcos","Ayudante"], semana:1,
+      ini:semStart(1), fin:semEnd(1), horas_objetivo:64, horas_reales:0, avance:0,
+      estado:"planificado",
+      criterio:"Canalizaciones completas · Cableado terminado · Conexiones realizadas · Comprobaciones",
+      materiales:[
+        {id:uid("m"),desc:"Bandeja 200mm",cant:"40 m",prov:"Elecmat",fecha:semStart(1),confirmado:true},
+        {id:uid("m"),desc:"Cable RZ1-K 5G6",cant:"300 m",prov:"Elecmat",fecha:semStart(1),confirmado:false},
+      ],
+      restricciones:[
+        {id:uid("r"),tipo:"Material",estado:"warning",nota:"Cable pendiente de confirmar"},
+        {id:uid("r"),tipo:"Zona",estado:"ready",nota:"Zona A liberada"},
+        {id:uid("r"),tipo:"Planos",estado:"ready",nota:""},
+      ],
+    },
+    {
+      id:uid("c"), obra:"obra_ej", familia:"refrigerante",
+      titulo:"Tendido tubería frigorífica planta 1", responsable:"Marcos",
+      cuadrilla:["Marcos","Ayudante","Pedro"], semana:1,
+      ini:semStart(1), fin:semEnd(1), horas_objetivo:80, horas_reales:0, avance:0,
+      estado:"planificado",
+      criterio:"Tubería tendida · Soportada · Aislada · Prueba de estanqueidad",
+      materiales:[{id:uid("m"),desc:"Tubo Cu 5/8",cant:"120 m",prov:"Frigomat",fecha:semStart(1),confirmado:true}],
+      restricciones:[{id:uid("r"),tipo:"Trabajos previos",estado:"ready",nota:""},{id:uid("r"),tipo:"Material",estado:"ready",nota:""}],
+    },
+    {
+      id:uid("c"), obra:"obra_ej", familia:"conductos",
+      titulo:"Montaje conductos pasillo central", responsable:"Marcos",
+      cuadrilla:["Pedro"], semana:2,
+      ini:semStart(2), fin:semEnd(2), horas_objetivo:48, horas_reales:0, avance:0,
+      estado:"previsto",
+      criterio:"Conductos montados y sellados",
+      materiales:[{id:uid("m"),desc:"Conducto fibra 400x300",cant:"60 m",prov:"Climaver",fecha:semStart(2),confirmado:false}],
+      restricciones:[{id:uid("r"),tipo:"Material",estado:"blocked",nota:"Conducto no pedido"},{id:uid("r"),tipo:"Trabajos previos",estado:"warning",nota:"Depende de falsos techos"}],
+    },
+    {
+      id:uid("c"), obra:"obra_ej", familia:"electricidad",
+      titulo:"Cuadro eléctrico secundario", responsable:"Marcos",
+      cuadrilla:["Marcos"], semana:3,
+      ini:semStart(3), fin:semEnd(3), horas_objetivo:40, horas_reales:0, avance:0,
+      estado:"previsto", criterio:"Cuadro montado y conexionado",
+      materiales:[], restricciones:[{id:uid("r"),tipo:"Material",estado:"warning",nota:"Cuadro en fábrica"}],
+    },
+    // Compromiso ya en ejecución (semana en curso) de otra obra, con horas consumidas
+    {
+      id:uid("c"), obra:"obra_cc", familia:"refrigerante",
+      titulo:"VRV planta 2 — tendido y carga", responsable:"Nacho",
+      cuadrilla:["Nacho","Luis"], semana:1,
+      ini:semStart(1), fin:semEnd(1), horas_objetivo:90, horas_reales:0, avance:0,
+      estado:"planificado", criterio:"Líneas tendidas · Vacío · Carga refrigerante",
+      materiales:[], restricciones:[{id:uid("r"),tipo:"Material",estado:"ready",nota:""}],
+    },
+  ];
+
+  // desviaciones cerradas (histórico) para que los KPIs no salgan a cero
+  const desviaciones = [
+    {id:uid("d"),obra:"obra_cc",familia:"salamaquinas",titulo:"Montaje enfriadora",target:900,real:1040,causa:"rendimiento",nota:"Accesos complicados en cubierta",fecha:semStart(-1)},
+    {id:uid("d"),obra:"obra_ej",familia:"refrigerante",titulo:"Tubería planta baja",target:300,real:352,causa:"material",nota:"Esperas por falta de accesorios",fecha:semStart(-1)},
+  ];
+  const retrabajos = [
+    {id:uid("rw"),obra:"obra_cc",familia:"refrigerante",responsable:"Nacho",desc:"Fuga en unión soldada P2",horas:12,tipo:"fuga",origen:"interno",fecha:semStart(0)},
+  ];
+  const compras_urgentes = [
+    {id:uid("cu"),obra:"obra_ej",trabajador:"Marcos",prov:"Elecmat",motivo:"Falta de bridas",desc:"Bridas y tornillería",importe:48,tiempo_perdido:1.5,fecha:semStart(0)},
+  ];
+
+  // --- compromisos históricos ya terminados (semana 0) para que el PPC sea realista ---
+  function hist(obra,familia,titulo,resp,hObj,hReal){
+    return {id:uid("c"),obra,familia,titulo,responsable:resp,cuadrilla:[resp],semana:0,
+      ini:semStart(-1),fin:semEnd(-1),horas_objetivo:hObj,horas_reales:hReal,avance:100,estado:"terminado",
+      criterio:"",materiales:[],restricciones:[{id:uid("r"),tipo:"Zona",estado:"ready",nota:""}]};
+  }
+  // Espacio Joven: 4 de 6 → PPC 67-75% (ámbar)
+  comp.push(
+    hist("obra_ej","refrigerante","Tubería planta baja","Marcos",300,352),
+    hist("obra_ej","electricidad","Acometida general","Marcos",56,54),
+    hist("obra_ej","otros","Replanteo y medios","Pedro",40,40),
+    hist("obra_ej","refrigerante","Soportación P1","Pedro",64,70),
+    hist("obra_ej","conductos","Conducto sala técnica","Pedro",48,46),
+  );
+  // Centro Comercial: 10 de 11 → PPC ~91% (verde)
+  comp.push(
+    hist("obra_cc","salamaquinas","Montaje enfriadora","Nacho",900,1040),
+    hist("obra_cc","salamaquinas","Bancadas y antivibratorios","Nacho",120,118),
+    hist("obra_cc","refrigerante","Líneas P1","Luis",220,210),
+    hist("obra_cc","refrigerante","Líneas P2","Luis",240,255),
+    hist("obra_cc","conductos","Conductos P1","Nacho",300,290),
+    hist("obra_cc","conductos","Conductos P2","Nacho",280,300),
+    hist("obra_cc","control","Cableado de control","Luis",160,150),
+    hist("obra_cc","electricidad","Fuerza cuadros","Nacho",180,175),
+    hist("obra_cc","refrigerante","Carga y vacío P1","Luis",90,88),
+    hist("obra_cc","otros","Remates planta técnica","Nacho",120,130),
+  );
+
+  // consumo acumulado por obra (actual_hours) — simulado para los KPIs EAC
+  const consumo = { obra_ej:2100, obra_cc:4650, obra_ho:620 };
+  // estimación de horas restantes (remaining_estimate) — editable por ingeniero
+  const restante = { obra_ej:1080, obra_cc:900,  obra_ho:3700 };
+
+  return {
+    version:1,
+    rolActual:"direccion",
+    obraActual:"obra_ej",
+    proyectos, compromisos:comp, desviaciones, retrabajos, compras_urgentes,
+    consumo, restante,
+    // configuración de semáforos (sección 26)
+    config:{
+      desv:{green:5, warn:10},       // % desviación horas
+      ppc:{green:85, warn:70},       // %
+    },
+  };
+}
+
+/* ===================================================================
+   MOTOR DE KPIs  (secciones 18–20, 24–26)
+   =================================================================== */
+function P(id){ return DB.proyectos.find(p=>p.id===id); }
+function compsDe(obraId){ return DB.compromisos.filter(c=>c.obra===obraId); }
+
+// EAC / VAC por obra (sección 19)
+function kpiObra(p){
+  const baseline = p.baseline_horas;
+  const actual   = DB.consumo[p.id] || 0;
+  const rem      = DB.restante[p.id] || 0;
+  const eac      = actual + rem;
+  const vac      = baseline - eac;                    // negativo = sobrecoste
+  const desvH    = eac - baseline;                    // horas de más previstas
+  const desvPct  = baseline ? (desvH/baseline*100) : 0;
+  const avance   = baseline ? Math.min(100, actual/eac*100) : 0; // aprox físico
+  // PPC de la obra (sección 20): objetivos terminados / comprometidos
+  const comps = compsDe(p.id);
+  const comprometidos = comps.filter(c=>["planificado","curso","terminado"].includes(c.estado));
+  const terminados = comps.filter(c=>c.estado==="terminado");
+  const ppc = comprometidos.length ? (terminados.length/comprometidos.length*100) : null;
+  // certificación
+  const cert = p.certificacion || {objetivo_mes:0,prevista:0};
+  const certPct = cert.objetivo_mes ? (cert.prevista/cert.objetivo_mes*100) : null;
+  // plazo
+  const diasRest = diasEntre(ISO(hoy()), p.fecha_fin_contractual);
+  // retrabajo horas
+  const rwH = DB.retrabajos.filter(r=>r.obra===p.id).reduce((s,r)=>s+(+r.horas||0),0);
+
+  const semDesv = semaforoDesv(desvPct);
+  const semPpc  = ppc==null?"x":semaforoPpc(ppc);
+  // riesgo global = peor de desviación, ppc, plazo-vs-certificación
+  const riesgo = peor([semDesv, semPpc, diasRest<0?"c":"g", (certPct!=null&&certPct<90)?"w":"g"]);
+
+  return {baseline,actual,rem,eac,vac,desvH,desvPct,avance,ppc,cert,certPct,diasRest,rwH,semDesv,semPpc,riesgo};
+}
+
+function semaforoDesv(pct){ const c=DB.config.desv; const a=Math.abs(pct); if(a<=c.green) return "g"; if(a<=c.warn) return "w"; return "c"; }
+function semaforoPpc(pct){ const c=DB.config.ppc; if(pct>=c.green) return "g"; if(pct>=c.warn) return "w"; return "c"; }
+const ORD={g:0,x:1,w:2,c:3};
+function peor(arr){ return arr.reduce((a,b)=> ORD[b]>ORD[a]?b:a, "g"); }
+const SEM_TXT={g:"OK",w:"Vigilar",c:"Crítico",x:"—"};
+const SEM_RIESGO={g:"Bajo",w:"Medio",c:"Alto",x:"—"};
+
+// agregados globales (dashboard dirección, sección 24)
+function kpiGlobal(){
+  let baseline=0,actual=0,eac=0,vac=0,enRiesgo=0,rwH=0;
+  let ppcNum=0,ppcDen=0, certObj=0,certPrev=0;
+  DB.proyectos.forEach(p=>{
+    const k=kpiObra(p);
+    baseline+=k.baseline; actual+=k.actual; eac+=k.eac; vac+=k.vac; rwH+=k.rwH;
+    if(k.riesgo==="c"||k.riesgo==="w") enRiesgo++;
+    const comps=compsDe(p.id);
+    ppcDen += comps.filter(c=>["planificado","curso","terminado"].includes(c.estado)).length;
+    ppcNum += comps.filter(c=>c.estado==="terminado").length;
+    certObj+=k.cert.objetivo_mes||0; certPrev+=k.cert.prevista||0;
+  });
+  const ppc = ppcDen? ppcNum/ppcDen*100 : null;
+  const desvPct = baseline? (eac-baseline)/baseline*100 : 0;
+  return {obras:DB.proyectos.length,baseline,actual,eac,vac,desvPct,ppc,enRiesgo,rwH,certObj,certPrev};
+}
+
+/* ===================================================================
+   ALERTAS / EXCEPCIONES  (sección 27)
+   =================================================================== */
+function alertas(){
+  const out=[];
+  DB.proyectos.forEach(p=>{
+    const k=kpiObra(p);
+    if(k.vac<0) out.push({sev:"c",obra:p,txt:`EAC supera baseline en ${fmtH(-k.vac)}`});
+    if(k.diasRest<0) out.push({sev:"c",obra:p,txt:`Fecha prevista supera la fecha contractual`});
+    if(k.ppc!=null && semaforoPpc(k.ppc)==="c") out.push({sev:"c",obra:p,txt:`PPC bajo (${Math.round(k.ppc)} %)`});
+    else if(k.ppc!=null && semaforoPpc(k.ppc)==="w") out.push({sev:"w",obra:p,txt:`PPC a vigilar (${Math.round(k.ppc)} %)`});
+    if(k.certPct!=null && k.certPct<90) out.push({sev:"w",obra:p,txt:`Certificación prevista por debajo del objetivo (${Math.round(k.certPct)} %)`});
+    if(k.rwH>=10) out.push({sev:"w",obra:p,txt:`Retrabajo elevado (${fmtH(k.rwH)})`});
+    // restricciones bloqueadas próximas a inicio
+    compsDe(p.id).forEach(c=>{
+      const estR = estadoRestriccion(c);
+      if(estR==="blocked" && c.semana<=2) out.push({sev:"c",obra:p,txt:`Objetivo bloqueado próximo a inicio: ${c.titulo}`});
+      const matPend = (c.materiales||[]).some(m=>!m.confirmado);
+      if(matPend && c.semana===1) out.push({sev:"w",obra:p,txt:`Material sin confirmar: ${c.titulo}`});
+    });
+  });
+  const o={c:0,w:1,g:2,x:3};
+  return out.sort((a,b)=>o[a.sev]-o[b.sev]);
+}
+function estadoRestriccion(c){
+  const r=c.restricciones||[];
+  if(r.some(x=>x.estado==="blocked")) return "blocked";
+  if(r.some(x=>x.estado==="warning")) return "warning";
+  return "ready";
+}
+const R2CLS={ready:"rdy",warning:"wrn",blocked:"blk"};
+const R2CHIP={ready:"g",warning:"w",blocked:"c"};
+const R2TXT={ready:"READY",warning:"WARNING",blocked:"BLOCKED"};
+
+/* ===================================================================
+   RENDER — navegación y arranque
+   =================================================================== */
+let ordenProd = {col:"riesgo", dir:-1};
+let subtabObra = "resumen";
+
+function render(){
+  // selector de rol
+  const rs=$("#rolSel");
+  rs.innerHTML = Object.entries(ROLES).map(([k,v])=>`<option value="${k}">${esc(v.nom)}</option>`).join("");
+  rs.value = DB.rolActual;
+
+  // nav según rol
+  const vistas = ROLES[DB.rolActual].vistas;
+  $("#nav").innerHTML = vistas.map(v=>`<button data-goto="${v}"><span class="em">${NAV_META[v].em}</span>${NAV_META[v].et}</button>`).join("");
+  $$("#nav button").forEach(b=> b.onclick=()=>irA(b.dataset.goto));
+
+  // vista inicial válida para el rol
+  let actual = $(".vista.on")?.dataset.vista;
+  if(!actual || !vistas.includes(actual)) actual = vistas[0];
+  irA(actual);
+}
+
+function irA(v){
+  $$(".vista").forEach(s=> s.classList.toggle("on", s.dataset.vista===v));
+  $$("#nav button").forEach(b=> b.classList.toggle("on", b.dataset.goto===v));
+  window.scrollTo({top:0,behavior:"smooth"});
+  if(v==="direccion") vistaDireccion();
+  if(v==="produccion") vistaProduccion();
+  if(v==="obra") vistaObra();
+  if(v==="encargado") vistaEncargado();
+  if(v==="ajustes") vistaAjustes();
+}
+
+/* ===================================================================
+   VISTA · DASHBOARD DIRECCIÓN  (sección 24)
+   =================================================================== */
+function vistaDireccion(){
+  const g=kpiGlobal();
+  const sDesv=semaforoDesv(g.desvPct), sPpc=g.ppc==null?"x":semaforoPpc(g.ppc);
+  const certPct = g.certObj? g.certPrev/g.certObj*100 : null;
+  const el=$('[data-vista="direccion"]');
+  el.innerHTML = `
+    <div class="pagehead">
+      <div>
+        <h2>Dashboard Dirección</h2>
+        <div class="desc">Control por excepción · visión global de obras y previsión a terminación</div>
+      </div>
+    </div>
+
+    <div class="kpis">
+      ${kpiCard("Obras activas", g.obras, "📁", "n", "")}
+      ${kpiCard("Horas presupuestadas", fmtH(g.baseline), "🎯", "n", "Baseline total")}
+      ${kpiCard("Horas consumidas", fmtH(g.actual), "⏱️", "n", `${Math.round(g.actual/g.baseline*100)} % del baseline`)}
+      ${kpiCard("EAC total", fmtH(g.eac), "🔮", sDesv, "Previsión a terminación")}
+      ${kpiCard("Desviación prevista", (g.vac<0?"+":"")+fmtH(-g.vac), "📈", sDesv, fmtPct(g.desvPct)+" sobre baseline")}
+      ${kpiCard("PPC medio", g.ppc==null?"—":Math.round(g.ppc)+" %", "✅", sPpc, "Compromisos cumplidos")}
+      ${kpiCard("Certificación", certPct==null?"—":Math.round(certPct)+" %", "💶", certPct!=null&&certPct<90?"w":"g", "Prevista vs objetivo")}
+      ${kpiCard("Obras en riesgo", g.enRiesgo, "⚠️", g.enRiesgo?"c":"g", "Vigilar / crítico")}
+      ${kpiCard("Retrabajo", fmtH(g.rwH), "🔁", g.rwH>=10?"w":"g", "Horas acumuladas")}
+    </div>
+
+    <div class="panel">
+      <div class="cab"><h3>⚠️ Excepciones y alertas</h3><div class="sep"></div><span class="mini">Prioriza lo que destruye margen</span></div>
+      <div class="cuerpo flush">${renderAlertas()}</div>
+    </div>
+
+    <div class="panel">
+      <div class="cab"><h3>🏗️ Obras</h3><div class="sep"></div><button class="btn btn-ghost btn-sm" onclick="irA('produccion')">Ver tabla completa →</button></div>
+      <div class="cuerpo flush"><div class="tabla-wrap">${tablaObras(false)}</div></div>
+    </div>
+  `;
+}
+
+function kpiCard(lab,val,emo,cls,sub){
+  return `<div class="kpi ${cls}"><div class="borde"></div>
+    <div class="lab">${emo} ${esc(lab)}</div>
+    <div class="val">${val}</div>
+    ${sub?`<div class="sub">${esc(sub)}</div>`:""}
+  </div>`;
+}
+
+function renderAlertas(){
+  const a=alertas();
+  if(!a.length) return `<div class="empty"><div class="e">🎉</div><p>Sin excepciones. Todas las obras dentro de parámetros.</p></div>`;
+  return `<div style="padding:6px 0">`+a.map(x=>`
+    <div style="display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--linea);cursor:pointer"
+         onclick="abrirObra('${x.obra.id}')">
+      <span class="dot ${x.sev}"></span>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:13.5px">${esc(x.txt)}</div>
+        <div class="mini">${esc(x.obra.nombre)} · ${esc(x.obra.codigo)}</div>
+      </div>
+      <span class="chip ${x.sev}">${x.sev==="c"?"Crítico":x.sev==="w"?"Vigilar":"OK"}</span>
+    </div>`).join("")+`</div>`;
+}
+
+/* ===================================================================
+   VISTA · DASHBOARD PRODUCCIÓN  (sección 25) — tabla ordenable
+   =================================================================== */
+function vistaProduccion(){
+  const el=$('[data-vista="produccion"]');
+  el.innerHTML = `
+    <div class="pagehead">
+      <div><h2>Dashboard Producción</h2><div class="desc">Todas las obras · ordena por desviación, PPC, plazo o riesgo</div></div>
+      <div class="sep"></div>
+      <button class="btn btn-pri btn-sm" onclick="nuevaObra()">＋ Nueva obra</button>
+    </div>
+    <div class="panel"><div class="cuerpo flush"><div class="tabla-wrap">${tablaObras(true)}</div></div></div>
+  `;
+}
+
+const COLS=[
+  {k:"obra",t:"Obra"},{k:"ingeniero",t:"Ingeniero"},{k:"avance",t:"Avance"},
+  {k:"baseline",t:"Baseline"},{k:"actual",t:"Consumidas"},{k:"eac",t:"EAC"},
+  {k:"desvPct",t:"Desviación"},{k:"ppc",t:"PPC"},{k:"certPct",t:"Cert."},
+  {k:"diasRest",t:"Plazo"},{k:"riesgo",t:"Riesgo"},
+];
+function tablaObras(full){
+  const rows = DB.proyectos.map(p=>({p,k:kpiObra(p)}));
+  const o=ordenProd;
+  rows.sort((A,B)=>{
+    let a,b;
+    switch(o.col){
+      case "obra": a=A.p.nombre;b=B.p.nombre;break;
+      case "ingeniero": a=A.p.ingeniero;b=B.p.ingeniero;break;
+      case "riesgo": a=ORD[A.k.riesgo];b=ORD[B.k.riesgo];break;
+      default: a=A.k[o.col]; b=B.k[o.col];
+    }
+    if(a<b) return -o.dir; if(a>b) return o.dir; return 0;
+  });
+  const th = COLS.map(c=>{
+    const on = o.col===c.k;
+    return `<th class="${on?'sort':''}" onclick="ordenar('${c.k}')">${c.t} <span class="arr">${on?(o.dir>0?'▲':'▼'):'↕'}</span></th>`;
+  }).join("");
+  const body = rows.map(({p,k})=>`
+    <tr onclick="abrirObra('${p.id}')">
+      <td class="obra-cell">${esc(p.nombre)}<div class="mini" style="font-weight:600">${esc(p.codigo)}</div></td>
+      <td>${esc(p.ingeniero)}</td>
+      <td><div class="barwrap"><div class="bar"><i style="width:${k.avance}%"></i></div><b>${Math.round(k.avance)}%</b></div></td>
+      <td class="num">${fmtH(k.baseline)}</td>
+      <td class="num">${fmtH(k.actual)}</td>
+      <td class="num">${fmtH(k.eac)}</td>
+      <td><span class="chip ${k.semDesv}">${k.vac<0?"+":""}${fmtH(Math.abs(k.desvH))} · ${fmtPct(k.desvPct)}</span></td>
+      <td>${k.ppc==null?'<span class="chip x">—</span>':`<span class="chip ${k.semPpc}">${Math.round(k.ppc)}%</span>`}</td>
+      <td>${k.certPct==null?'—':`<span class="chip ${k.certPct<90?'w':'g'}">${Math.round(k.certPct)}%</span>`}</td>
+      <td><span class="chip ${k.diasRest<0?'c':k.diasRest<14?'w':'g'}">${k.diasRest<0?Math.abs(k.diasRest)+'d tarde':k.diasRest+'d'}</span></td>
+      <td><span class="chip ${k.riesgo}">${SEM_RIESGO[k.riesgo]}</span></td>
+    </tr>`).join("");
+  return `<table class="data"><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table>`;
+}
+function ordenar(col){
+  if(ordenProd.col===col) ordenProd.dir*=-1; else ordenProd={col,dir:(col==="obra"||col==="ingeniero")?1:-1};
+  vistaProduccion();
+}
+
+/* ===================================================================
+   VISTA · DETALLE DE OBRA  (secciones 5, 7, 8, 9, 18, 21)
+   =================================================================== */
+function abrirObra(id){ DB.obraActual=id; guardar(); irA("obra"); }
+function vistaObra(){
+  const p=P(DB.obraActual)||DB.proyectos[0];
+  if(!p){ $('[data-vista="obra"]').innerHTML=`<div class="empty"><div class="e">📁</div><p>No hay obras.</p></div>`; return; }
+  DB.obraActual=p.id;
+  const k=kpiObra(p);
+  const sel = DB.proyectos.map(o=>`<option value="${o.id}" ${o.id===p.id?"selected":""}>${esc(o.nombre)} (${esc(o.codigo)})</option>`).join("");
+  const el=$('[data-vista="obra"]');
+  el.innerHTML = `
+    <div class="pagehead">
+      <div>
+        <h2>${esc(p.nombre)}</h2>
+        <div class="desc">${esc(p.codigo)} · ${esc(p.cliente)} · Ingeniero: ${esc(p.ingeniero)} · Resp.: ${esc(p.responsable)}</div>
+      </div>
+      <div class="sep"></div>
+      <select class="obra-sel" onchange="abrirObra(this.value)">${sel}</select>
+    </div>
+
+    <div class="kpis">
+      ${kpiCard("Baseline", fmtH(k.baseline), "🎯", "n", "Horas presupuestadas")}
+      ${kpiCard("Consumidas", fmtH(k.actual), "⏱️", "n", "ACTUAL_HOURS")}
+      ${kpiCard("Restantes (est.)", fmtH(k.rem), "📐", "n", "REMAINING_ESTIMATE")}
+      ${kpiCard("EAC", fmtH(k.eac), "🔮", k.semDesv, "Estimate At Completion")}
+      ${kpiCard("VAC", (k.vac<0?"":"+")+fmtH(k.vac), "📊", k.semDesv, k.vac<0?"Previsión de sobrecoste":"Dentro de presupuesto")}
+      ${kpiCard("PPC obra", k.ppc==null?"—":Math.round(k.ppc)+" %", "✅", k.semPpc, "Compromisos cumplidos")}
+    </div>
+
+    <div class="subtabs" id="subtabs">
+      ${subBtn("resumen","Resumen")}
+      ${subBtn("plan","Plan maestro")}
+      ${subBtn("lookahead","Lookahead 4 sem.")}
+      ${subBtn("objetivos","Objetivos")}
+      ${subBtn("desv","Desviaciones")}
+      ${subBtn("cert","Certificación")}
+    </div>
+    <div id="subcont"></div>
+  `;
+  $$("#subtabs button").forEach(b=> b.onclick=()=>{ subtabObra=b.dataset.sub; vistaObra(); });
+  renderSub(p,k);
+}
+function subBtn(id,txt){ return `<button data-sub="${id}" class="${subtabObra===id?'on':''}">${txt}</button>`; }
+
+function renderSub(p,k){
+  const c=$("#subcont");
+  if(subtabObra==="resumen")   c.innerHTML=subResumen(p,k);
+  if(subtabObra==="plan")      c.innerHTML=subPlan(p);
+  if(subtabObra==="lookahead"){ c.innerHTML=subLookahead(p); activarLookahead(p); }
+  if(subtabObra==="objetivos") c.innerHTML=subObjetivos(p);
+  if(subtabObra==="desv")      c.innerHTML=subDesviaciones(p);
+  if(subtabObra==="cert")      c.innerHTML=subCertificacion(p,k);
+}
+
+/* ---- Resumen: baseline por familia + consumo ---- */
+function subResumen(p,k){
+  const max = Math.max(...p.baselines.map(b=>b.horas),1);
+  const filas = p.baselines.map(b=>{
+    const f=famById(b.familia);
+    const pct=Math.round(b.horas/max*100);
+    return `<div class="fam-row">
+      <div class="nom"><span class="emo">${f.emo}</span>${esc(f.nom)}</div>
+      <div class="track"><div class="track2"><i style="width:${pct}%;background:linear-gradient(90deg,var(--cian),var(--azul-2))"></i></div></div>
+      <div class="cifra">${fmtH(b.horas)}</div>
+    </div>`;
+  }).join("");
+  return `
+  <div class="panel">
+    <div class="cab"><h3>🎯 Presupuesto productivo (baseline)</h3><div class="sep"></div><span class="pill-info">Total ${fmtH(p.baseline_horas)}</span></div>
+    <div class="cuerpo">
+      <div class="hint" style="margin-bottom:14px">Las horas presupuestadas son la línea base económica. <b>No se modifican</b> una vez aprobada la obra; cualquier diferencia aparece como desviación.</div>
+      ${filas}
+    </div>
+  </div>
+  <div class="panel">
+    <div class="cab"><h3>🔮 Previsión a terminación (EAC)</h3></div>
+    <div class="cuerpo">
+      <div class="fam-row"><div class="nom">Consumidas</div><div class="track"></div><div class="cifra">${fmtH(k.actual)}</div></div>
+      <div class="fam-row"><div class="nom">+ Restantes (estimadas)</div><div class="track"></div><div class="cifra">${fmtH(k.rem)} <button class="btn btn-ghost btn-sm" style="margin-left:8px" onclick="editarRestante('${p.id}')">Ajustar</button></div></div>
+      <div class="fam-row"><div class="nom" style="font-weight:800">= EAC</div><div class="track"></div><div class="cifra" style="font-size:15px">${fmtH(k.eac)}</div></div>
+      <div class="fam-row"><div class="nom" style="font-weight:800">VAC (baseline − EAC)</div><div class="track"></div><div class="cifra"><span class="chip ${k.semDesv}">${k.vac<0?"":"+"}${fmtH(k.vac)}</span></div></div>
+    </div>
+  </div>`;
+}
+function editarRestante(id){
+  const p=P(id); const k=kpiObra(p);
+  modal({
+    titulo:"Ajustar estimación de horas restantes",
+    cuerpo:`
+      <div class="hint" style="margin-bottom:14px">Actualiza la previsión de horas que faltan para terminar la obra. Esto recalcula el EAC y la desviación prevista, sin tocar el baseline.</div>
+      <div class="field"><label>Horas restantes estimadas</label><input type="number" id="f_rem" value="${k.rem}" min="0"></div>
+      <div class="mini">EAC actual = ${fmtH(k.actual)} consumidas + restantes</div>`,
+    ok:"Guardar", onOk:()=>{
+      DB.restante[id]=Math.max(0,+$("#f_rem").value||0); guardar(); vistaObra(); toast("Previsión actualizada"); return true;
+    }
+  });
+}
+
+/* ---- Plan maestro (sección 8) ---- */
+function subPlan(p){
+  const inicio = p.plan.reduce((m,f)=> f.ini<m?f.ini:m, p.plan[0]?.ini||ISO(hoy()));
+  const fin    = p.plan.reduce((m,f)=> f.fin>m?f.fin:m, p.plan[0]?.fin||ISO(hoy()));
+  const span = Math.max(1,diasEntre(inicio,fin));
+  const barras = p.plan.map(f=>{
+    const fa=famById(f.familia);
+    const off = diasEntre(inicio,f.ini)/span*100;
+    const w   = Math.max(3,diasEntre(f.ini,f.fin)/span*100);
+    const col = f.estado==="fin"?"var(--verde)":f.estado==="curso"?"var(--cian)":"var(--gris)";
+    return `<div class="fam-row">
+      <div class="nom"><span class="emo">${fa.emo}</span>${esc(fa.nom)}</div>
+      <div class="track"><div class="track2" style="background:var(--fondo-2)">
+        <i style="margin-left:${off}%;width:${w}%;background:${col};display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:800">${f.avance?f.avance+"%":""}</i>
+      </div></div>
+      <div class="cifra" style="min-width:150px">${fDMA(f.ini)} → ${fDMA(f.fin)}</div>
+    </div>`;
+  }).join("");
+  return `<div class="panel">
+    <div class="cab"><h3>📅 Plan maestro por fases</h3><div class="sep"></div><span class="mini">${fDMA(inicio)} — ${fDMA(fin)}</span></div>
+    <div class="cuerpo">${barras||'<div class="empty"><p>Sin fases.</p></div>'}</div>
+  </div>`;
+}
+
+/* ---- Lookahead 4 semanas (sección 9) — board con arrastre ---- */
+function subLookahead(p){
+  const t=hoy(); const lunes=new Date(t); lunes.setDate(t.getDate()-((t.getDay()+6)%7));
+  const rango = n =>{ const a=new Date(lunes);a.setDate(lunes.getDate()+7*n); const b=new Date(a);b.setDate(a.getDate()+4); return `${fDMA(ISO(a))}–${fDMA(ISO(b))}`; };
+  const et = {1:"Compromiso firme",2:"Previsión",3:"Previsión",4:"Previsión"};
+  const comps = compsDe(p.id);
+  const cols = [1,2,3,4].map(s=>{
+    const items = comps.filter(c=>c.semana===s).map(c=>objCard(c)).join("");
+    return `<div class="semana ${s===1?'compromiso':''}">
+      <div class="cab"><div class="et">Semana +${s} · ${et[s]}</div><div class="rango">${rango(s)}</div></div>
+      <div class="zona" data-sem="${s}">${items || '<div class="vacia">Arrastra objetivos aquí</div>'}</div>
+    </div>`;
+  }).join("");
+  return `
+  <div class="panel">
+    <div class="cab"><h3>🗓️ Lookahead 4 semanas</h3><div class="sep"></div>
+      <button class="btn btn-cian btn-sm" onclick="nuevoObjetivo('${p.id}')">＋ Objetivo</button>
+    </div>
+    <div class="cuerpo">
+      <div class="hint" style="margin-bottom:14px">Arrastra (con el ratón o el dedo) un objetivo entre semanas. <b>Semana +1 = compromiso firme.</b> Cada viernes, la Semana +2 pasa a +1 y debe revisarse. Un objetivo <b class="chip c" style="padding:2px 7px">BLOCKED</b> no debería estar en el compromiso sin advertencia.</div>
+      <div class="lookahead" id="board">${cols}</div>
+    </div>
+  </div>`;
+}
+function objCard(c){
+  const f=famById(c.familia); const er=estadoRestriccion(c);
+  return `<div class="obj-card ${R2CLS[er]}" data-id="${c.id}" draggable="true" onclick="abrirObjetivo('${c.id}')">
+    <div class="fam">${f.emo} ${esc(f.nom)}</div>
+    <div class="ti">${esc(c.titulo)}</div>
+    <div class="meta">
+      <span class="chip ${R2CHIP[er]}" style="padding:2px 7px">${R2TXT[er]}</span>
+      <span class="hrs">🎯 ${fmtH(c.horas_objetivo)}</span>
+      <span>👷 ${esc(c.responsable)}</span>
+    </div>
+  </div>`;
+}
+
+/* ---- arrastre del lookahead (ratón + dedo), patrón del planifiqueitor ---- */
+function activarLookahead(p){
+  const board=$("#board"); if(!board) return;
+  let arrastre=null;
+
+  // zonas: eventos nativos (ratón)
+  $$(".zona",board).forEach(z=>{
+    z.addEventListener("dragover",e=>{ e.preventDefault(); z.classList.add("drag-over"); });
+    z.addEventListener("dragleave",()=> z.classList.remove("drag-over"));
+    z.addEventListener("drop",e=>{ e.preventDefault(); z.classList.remove("drag-over");
+      const id = arrastre?.id || e.dataTransfer.getData("text/plain");
+      moverObjetivo(id, +z.dataset.sem);
+    });
+  });
+  // tarjetas
+  $$(".obj-card",board).forEach(card=>{
+    const id=card.dataset.id;
+    card.addEventListener("dragstart",e=>{ arrastre={id}; e.dataTransfer.effectAllowed="move";
+      try{e.dataTransfer.setData("text/plain",id);}catch(_){}; setTimeout(()=>card.style.opacity=".35",0); });
+    card.addEventListener("dragend",()=>{ card.style.opacity="1"; arrastre=null; });
+    // táctil
+    card.style.touchAction="none";
+    card.addEventListener("pointerdown",e=>{
+      if(e.pointerType==="mouse") return;
+      const sx=e.clientX, sy=e.clientY; let mov=false, ghost=null;
+      const mv=ev=>{
+        const dx=ev.clientX-sx, dy=ev.clientY-sy;
+        if(!mov){ if(Math.hypot(dx,dy)<9) return; mov=true;
+          ghost=card.cloneNode(true); ghost.classList.add("ghost-drag");
+          const r=card.getBoundingClientRect(); ghost.style.width=r.width+"px"; document.body.appendChild(ghost);
+          card.style.opacity=".35"; }
+        ev.preventDefault();
+        ghost.style.left=ev.clientX+"px"; ghost.style.top=ev.clientY+"px";
+        const z=document.elementFromPoint(ev.clientX,ev.clientY)?.closest(".zona");
+        $$(".zona.drag-over",board).forEach(n=>n.classList.remove("drag-over")); if(z) z.classList.add("drag-over");
+      };
+      const fin=ev=>{
+        document.removeEventListener("pointermove",mv);
+        document.removeEventListener("pointerup",fin); document.removeEventListener("pointercancel",fin);
+        card.style.opacity="1";
+        if(mov){ if(ghost) ghost.remove();
+          const z=document.elementFromPoint(ev.clientX,ev.clientY)?.closest(".zona");
+          $$(".zona.drag-over",board).forEach(n=>n.classList.remove("drag-over"));
+          card._supClick=true; setTimeout(()=>card._supClick=false,350);
+          if(z) moverObjetivo(id,+z.dataset.sem);
+        }
+      };
+      document.addEventListener("pointermove",mv,{passive:false});
+      document.addEventListener("pointerup",fin); document.addEventListener("pointercancel",fin);
+    });
+    card.addEventListener("click",e=>{ if(card._supClick){ e.stopImmediatePropagation(); e.preventDefault(); } },true);
+  });
+}
+function moverObjetivo(id,sem){
+  const c=DB.compromisos.find(x=>x.id===id); if(!c||c.semana===sem) return;
+  c.semana=sem;
+  c.estado = sem===1 ? (c.estado==="terminado"?"terminado":"planificado") : "previsto";
+  if(sem===1 && estadoRestriccion(c)==="blocked") toast("⚠️ Objetivo BLOQUEADO en el compromiso firme");
+  guardar(); vistaObra();
+}
+
+/* ---- Objetivos (tabla) ---- */
+function subObjetivos(p){
+  const comps=compsDe(p.id);
+  if(!comps.length) return `<div class="panel"><div class="cuerpo"><div class="empty"><div class="e">🎯</div><p>Sin objetivos. Crea el primero desde el lookahead.</p></div></div></div>`;
+  const rows=comps.map(c=>{
+    const f=famById(c.familia); const er=estadoRestriccion(c);
+    const desvH=c.horas_reales-c.horas_objetivo; const sem=c.estado==="terminado"?semaforoDesv(c.horas_objetivo?desvH/c.horas_objetivo*100:0):"x";
+    return `<tr onclick="abrirObjetivo('${c.id}')">
+      <td class="obra-cell">${f.emo} ${esc(c.titulo)}<div class="mini" style="font-weight:600">${esc(f.nom)}</div></td>
+      <td>${esc(c.responsable)}</td>
+      <td><span class="chip ${c.semana<1?'x':'n'}">${c.semana<1?'Hist.':'S+'+c.semana}</span></td>
+      <td>${estadoChip(c.estado)}</td>
+      <td><span class="chip ${R2CHIP[er]}">${R2TXT[er]}</span></td>
+      <td class="num">${fmtH(c.horas_objetivo)}</td>
+      <td class="num">${c.horas_reales?fmtH(c.horas_reales):"—"}</td>
+      <td><div class="barwrap"><div class="bar"><i style="width:${c.avance}%"></i></div><b>${c.avance}%</b></div></td>
+    </tr>`;
+  }).join("");
+  return `<div class="panel"><div class="cab"><h3>🎯 Objetivos productivos</h3><div class="sep"></div>
+    <button class="btn btn-cian btn-sm" onclick="nuevoObjetivo('${p.id}')">＋ Objetivo</button></div>
+    <div class="cuerpo flush"><div class="tabla-wrap"><table class="data">
+    <thead><tr><th>Objetivo</th><th>Responsable</th><th>Semana</th><th>Estado</th><th>Restricción</th><th>H. objetivo</th><th>H. reales</th><th>Avance</th></tr></thead>
+    <tbody>${rows}</tbody></table></div></div></div>`;
+}
+const EST_TXT={planificado:"Planificado",previsto:"Previsto",curso:"En curso",terminado:"Terminado",bloqueado:"Bloqueado"};
+const EST_CLS={planificado:"n",previsto:"x",curso:"w",terminado:"g",bloqueado:"c"};
+function estadoChip(e){ return `<span class="chip ${EST_CLS[e]||'x'}">${EST_TXT[e]||e}</span>`; }
+
+/* ---- Desviaciones (sección 18) ---- */
+const CAUSAS=["rendimiento","material","planificacion","retrabajo","error_presupuesto","cambio_alcance","bloqueo_externo","cambio_prioridad","ausencia","otro"];
+const CAUSA_TXT={rendimiento:"Rendimiento",material:"Material",planificacion:"Planificación",retrabajo:"Retrabajo",error_presupuesto:"Error presupuesto",cambio_alcance:"Cambio alcance",bloqueo_externo:"Bloqueo externo",cambio_prioridad:"Cambio prioridad",ausencia:"Ausencia",otro:"Otro"};
+function subDesviaciones(p){
+  const ds=DB.desviaciones.filter(d=>d.obra===p.id);
+  const rows=ds.map(d=>{
+    const f=famById(d.familia); const vH=d.real-d.target; const vP=d.target?vH/d.target*100:0;
+    return `<tr>
+      <td class="obra-cell">${f.emo} ${esc(d.titulo)}</td>
+      <td class="num">${fmtH(d.target)}</td>
+      <td class="num">${fmtH(d.real)}</td>
+      <td><span class="chip ${semaforoDesv(vP)}">+${fmtH(vH)} · ${fmtPct(vP)}</span></td>
+      <td><span class="chip x">${CAUSA_TXT[d.causa]||d.causa}</span></td>
+      <td class="mini">${esc(d.nota||"")}</td>
+    </tr>`;
+  }).join("");
+  const rw=DB.retrabajos.filter(r=>r.obra===p.id);
+  const rwRows=rw.map(r=>`<tr><td class="obra-cell">${esc(r.desc)}</td><td>${esc(r.responsable)}</td><td class="num">${fmtH(r.horas)}</td><td><span class="chip ${r.origen==='interno'?'w':'x'}">${r.origen==='interno'?'Retrabajo interno':'Modif. externa'}</span></td><td class="mini">${esc(r.tipo)}</td></tr>`).join("");
+  return `
+  <div class="panel"><div class="cab"><h3>📉 Desviaciones</h3><div class="sep"></div>
+    <button class="btn btn-ghost btn-sm" onclick="nuevaDesviacion('${p.id}')">＋ Registrar</button></div>
+    <div class="cuerpo flush"><div class="tabla-wrap"><table class="data">
+    <thead><tr><th>Trabajo</th><th>H. objetivo</th><th>H. reales</th><th>Desviación</th><th>Causa</th><th>Nota</th></tr></thead>
+    <tbody>${rows||'<tr><td colspan="6" class="mini" style="padding:20px">Sin desviaciones registradas.</td></tr>'}</tbody></table></div></div></div>
+  <div class="panel"><div class="cab"><h3>🔁 Retrabajo</h3></div>
+    <div class="cuerpo flush"><div class="tabla-wrap"><table class="data">
+    <thead><tr><th>Descripción</th><th>Responsable</th><th>Horas</th><th>Tipo</th><th>Causa</th></tr></thead>
+    <tbody>${rwRows||'<tr><td colspan="5" class="mini" style="padding:20px">Sin retrabajo registrado.</td></tr>'}</tbody></table></div></div></div>`;
+}
+
+/* ---- Certificación (sección 21) ---- */
+function subCertificacion(p,k){
+  const c=p.certificacion||{objetivo_mes:0,prevista:0};
+  const pct=c.objetivo_mes?Math.round(c.prevista/c.objetivo_mes*100):0;
+  const eur=n=> (n||0).toLocaleString("es-ES")+" €";
+  return `<div class="panel"><div class="cab"><h3>💶 Certificación mensual</h3></div>
+    <div class="cuerpo">
+      <div class="kpis" style="margin:0">
+        ${kpiCard("Objetivo mes", eur(c.objetivo_mes), "🎯", "n", "CERTIFICATION_TARGET")}
+        ${kpiCard("Prevista", eur(c.prevista), "🔮", pct<90?"w":"g", "CERTIFICATION_FORECAST")}
+        ${kpiCard("Cumplimiento", pct+" %", "📊", pct<90?"w":"g", "Prevista vs objetivo")}
+      </div>
+      <div class="hint" style="margin-top:16px">La planificación de 4 semanas se relaciona con el objetivo de certificación, pero <b>la secuencia técnica siempre prevalece</b>. No dirigir la producción solo para maximizar certificación.</div>
+      <div style="margin-top:14px"><button class="btn btn-ghost btn-sm" onclick="editarCert('${p.id}')">Editar objetivo / previsión</button></div>
+    </div></div>`;
+}
+function editarCert(id){
+  const p=P(id); const c=p.certificacion||{objetivo_mes:0,prevista:0};
+  modal({titulo:"Certificación mensual",cuerpo:`
+    <div class="field"><label>Objetivo del mes (€)</label><input type="number" id="c_obj" value="${c.objetivo_mes}"></div>
+    <div class="field"><label>Certificación prevista (€)</label><input type="number" id="c_prev" value="${c.prevista}"></div>`,
+    ok:"Guardar", onOk:()=>{ p.certificacion={objetivo_mes:+$("#c_obj").value||0,prevista:+$("#c_prev").value||0}; guardar(); vistaObra(); toast("Certificación actualizada"); return true; }});
+}
+
+/* ===================================================================
+   VISTA · ENCARGADO (móvil)  (secciones 14, 15, 32)
+   =================================================================== */
+function vistaEncargado(){
+  const yo = "Marcos";
+  const mios = DB.compromisos.filter(c=>c.responsable===yo || (c.cuadrilla||[]).includes(yo));
+  // ordenar: en curso / compromiso primero
+  mios.sort((a,b)=> a.semana-b.semana);
+  const el=$('[data-vista="encargado"]');
+  const activos = mios.filter(c=>c.estado!=="terminado");
+  const hechos  = mios.filter(c=>c.estado==="terminado");
+  el.innerHTML = `
+  <div class="mob">
+    <div class="sal">
+      <div class="h">Hola, ${esc(yo)} 👋</div>
+      <div class="d">${activos.length} objetivo${activos.length!==1?"s":""} asignado${activos.length!==1?"s":""} · menos de 2 min al día</div>
+    </div>
+    ${activos.map(mCard).join("") || '<div class="empty"><div class="e">✅</div><p>No tienes objetivos activos.</p></div>'}
+    ${hechos.length?`<div class="mini" style="margin:18px 0 8px;font-weight:800;text-transform:uppercase;letter-spacing:.5px">Terminados</div>`+hechos.map(mCard).join(""):""}
+  </div>`;
+}
+function mCard(c){
+  const f=famById(c.familia); const er=estadoRestriccion(c); const p=P(c.obra);
+  const rest=Math.max(0,c.horas_objetivo-c.horas_reales);
+  const term = c.estado==="terminado";
+  return `<div class="mcard ${R2CLS[er]}">
+    <div class="top2">
+      <div class="fam">${f.emo} ${esc(f.nom)} <span class="chip ${R2CHIP[er]}" style="padding:2px 7px">${R2TXT[er]}</span></div>
+      <div class="ti">${esc(c.titulo)}</div>
+      <div class="ob">${esc(p?.nombre||"")} · Semana +${c.semana}</div>
+    </div>
+    <div class="horas">
+      <div class="hbox"><div class="n">${c.horas_objetivo}</div><div class="l">Objetivo</div></div>
+      <div class="hbox"><div class="n">${c.horas_reales}</div><div class="l">Consumidas</div></div>
+      <div class="hbox rest"><div class="n">${rest}</div><div class="l">Restantes</div></div>
+    </div>
+    <div class="mavance"><div class="barwrap"><div class="bar" style="flex:1"><i style="width:${c.avance}%"></i></div><b>${c.avance}%</b></div></div>
+    ${term?`<div style="padding:0 16px 16px"><span class="chip g" style="padding:8px 14px">✅ Terminado</span></div>`:`
+    <div class="acc">
+      <button onclick="mAvance('${c.id}')"><span class="e">📈</span>Actualizar avance</button>
+      <button class="blo" onclick="mBloqueo('${c.id}')"><span class="e">⛔</span>Bloqueo</button>
+      <button onclick="mMaterial('${c.id}')"><span class="e">📦</span>Material</button>
+      <button class="fin" onclick="mTerminar('${c.id}')"><span class="e">✔️</span>Terminar</button>
+    </div>`}
+  </div>`;
+}
+function CO(id){ return DB.compromisos.find(c=>c.id===id); }
+
+function mAvance(id){
+  const c=CO(id);
+  modal({titulo:"Actualizar avance",cuerpo:`
+    <div class="field"><label>Avance físico</label>
+      <div class="seg" id="seg_av">${[0,25,50,75,100].map(v=>`<button data-v="${v}" class="${c.avance===v?'on':''}">${v}%</button>`).join("")}</div>
+      <input type="range" id="f_av" min="0" max="100" step="5" value="${c.avance}" style="width:100%;margin-top:12px">
+    </div>
+    <div class="field"><label>Horas consumidas hasta ahora</label><input type="number" id="f_hr" value="${c.horas_reales}" min="0"></div>
+    <div class="mini">Objetivo: ${fmtH(c.horas_objetivo)}</div>`,
+    ok:"Guardar", onOk:()=>{
+      c.avance=+$("#f_av").value; c.horas_reales=+$("#f_hr").value||0;
+      if(c.estado==="planificado"||c.estado==="previsto") c.estado="curso";
+      guardar(); vistaEncargado(); toast("Avance actualizado"); return true;
+    }, after:()=>{
+      $$("#seg_av button").forEach(b=> b.onclick=()=>{ $("#f_av").value=b.dataset.v; $$("#seg_av button").forEach(x=>x.classList.remove("on")); b.classList.add("on"); });
+      $("#f_av").oninput=()=> $$("#seg_av button").forEach(x=>x.classList.toggle("on",+x.dataset.v===+$("#f_av").value));
+    }});
+}
+function mBloqueo(id){
+  const c=CO(id);
+  modal({titulo:"Comunicar bloqueo",cuerpo:`
+    <div class="hint bad" style="margin-bottom:14px">Un bloqueo avisa a tu ingeniero para que lo resuelva. Describe qué te impide avanzar.</div>
+    <div class="field"><label>Tipo</label>
+      <div class="seg" id="seg_bt">${["Material","Zona","Trabajos previos","Planos","Medios","Otro"].map((t,i)=>`<button data-v="${t}" class="${i===0?'on':''}">${t}</button>`).join("")}</div></div>
+    <div class="field"><label>¿Qué ocurre?</label><textarea id="f_bn" placeholder="Describe el bloqueo..."></textarea></div>`,
+    ok:"Enviar bloqueo", okCls:"btn-pri", onOk:()=>{
+      const tipo=$("#seg_bt button.on")?.dataset.v||"Otro"; const nota=$("#f_bn").value.trim();
+      c.restricciones=c.restricciones||[]; c.restricciones.push({id:uid("r"),tipo,estado:"blocked",nota});
+      guardar(); vistaEncargado(); toast("⛔ Bloqueo comunicado al ingeniero"); return true;
+    }, after:()=> segUnico("seg_bt")});
+}
+function mMaterial(id){
+  const c=CO(id);
+  modal({titulo:"Solicitar material",cuerpo:`
+    <div class="field"><label>Material necesario</label><input id="f_md" placeholder="Ej. Cable RZ1-K 5G6"></div>
+    <div class="field"><div class="row">
+      <div><label>Cantidad</label><input id="f_mc" placeholder="opcional"></div>
+      <div><label>Para cuándo</label><input type="date" id="f_mf" value="${ISO(hoy())}"></div>
+    </div></div>
+    <div class="field"><label>¿Es compra urgente?</label>
+      <div class="seg" id="seg_urg"><button class="si" data-v="1">Sí</button><button class="no on" data-v="0">No</button></div></div>`,
+    ok:"Solicitar", onOk:()=>{
+      const desc=$("#f_md").value.trim(); if(!desc){ toast("Indica el material"); return false; }
+      c.materiales=c.materiales||[]; c.materiales.push({id:uid("m"),desc,cant:$("#f_mc").value.trim(),prov:"",fecha:$("#f_mf").value,confirmado:false});
+      if($("#seg_urg button.on")?.dataset.v==="1"){
+        DB.compras_urgentes.push({id:uid("cu"),obra:c.obra,trabajador:c.responsable,prov:"",motivo:"Solicitud desde obra",desc,importe:0,tiempo_perdido:0,fecha:ISO(hoy())});
+      }
+      guardar(); vistaEncargado(); toast("📦 Material solicitado"); return true;
+    }, after:()=> segUnico("seg_urg")});
+}
+function mTerminar(id){
+  const c=CO(id);
+  modal({titulo:"Marcar como terminado",cuerpo:`
+    <div class="hint" style="margin-bottom:16px"><b>Criterio de terminado:</b><br>${esc(c.criterio||"—")}</div>
+    <div class="field"><label>¿Trabajo completamente terminado?</label>
+      <div class="seg" id="q1"><button class="si" data-v="si">Sí</button><button class="no" data-v="no">No</button></div></div>
+    <div class="field"><label>¿Pruebas realizadas?</label>
+      <div class="seg" id="q2"><button class="si" data-v="si">Sí</button><button class="no" data-v="no">No</button><button data-v="na">No aplica</button></div></div>
+    <div class="field"><label>¿Existe retrabajo?</label>
+      <div class="seg" id="q3"><button class="si" data-v="si">Sí</button><button class="no" data-v="no">No</button></div></div>
+    <div class="field"><label>Horas reales finales</label><input type="number" id="f_hf" value="${c.horas_reales||c.horas_objetivo}" min="0"></div>
+    <div class="field"><label>📷 Evidencia (según tipo de trabajo)</label>
+      <input type="file" accept="image/*" capture="environment" id="f_foto"></div>`,
+    ok:"Confirmar terminado", okCls:"btn-cian", onOk:()=>{
+      const q1=$("#q1 button.on")?.dataset.v, q3=$("#q3 button.on")?.dataset.v;
+      if(q1!=="si"){ toast("Solo se marca terminado si el trabajo está completo"); return false; }
+      c.horas_reales=+$("#f_hf").value||c.horas_reales; c.avance=100; c.estado="terminado";
+      // desviación automática (sección 18)
+      if(c.horas_reales>c.horas_objetivo){
+        const vH=c.horas_reales-c.horas_objetivo;
+        toast(`Terminado · desviación +${fmtH(vH)}. El ingeniero clasificará la causa.`);
+        DB.desviaciones.push({id:uid("d"),obra:c.obra,familia:c.familia,titulo:c.titulo,target:c.horas_objetivo,real:c.horas_reales,causa:"otro",nota:"Pendiente de clasificar",fecha:ISO(hoy())});
+      } else toast("✅ Objetivo terminado");
+      if(q3==="si"){
+        DB.retrabajos.push({id:uid("rw"),obra:c.obra,familia:c.familia,responsable:c.responsable,desc:"Retrabajo en "+c.titulo,horas:0,tipo:"otro",origen:"interno",fecha:ISO(hoy())});
+      }
+      guardar(); vistaEncargado(); return true;
+    }, after:()=>{ ["q1","q2","q3"].forEach(segUnico); }});
+}
+function segUnico(contId){
+  $$("#"+contId+" button").forEach(b=> b.onclick=()=>{ $$("#"+contId+" button").forEach(x=>x.classList.remove("on")); b.classList.add("on"); });
+}
+
+/* ===================================================================
+   OBJETIVO — detalle / alta  (secciones 10, 11, 12)
+   =================================================================== */
+function abrirObjetivo(id){
+  const c=CO(id); if(!c) return; const f=famById(c.familia); const p=P(c.obra); const er=estadoRestriccion(c);
+  const mats=(c.materiales||[]).map(m=>`<div class="fam-row"><div class="nom" style="min-width:0;flex:1">${m.confirmado?"✅":"⬜"} ${esc(m.desc)} ${m.cant?`<span class="mini">(${esc(m.cant)})</span>`:""}</div><div class="mini">${fDMA(m.fecha)}</div></div>`).join("")||'<div class="mini">Sin materiales.</div>';
+  const rests=(c.restricciones||[]).map(r=>`<div class="fam-row"><div class="nom" style="min-width:0;flex:1"><span class="chip ${R2CHIP[r.estado]}" style="padding:2px 7px">${R2TXT[r.estado]}</span> ${esc(r.tipo)}</div><div class="mini">${esc(r.nota||"")}</div></div>`).join("")||'<div class="mini">Sin restricciones.</div>';
+  modal({titulo:f.emo+" "+c.titulo, ancho:true, cuerpo:`
+    <div class="mini" style="margin-bottom:12px;font-weight:700">${esc(p?.nombre||"")} · ${esc(f.nom)} · Semana +${c.semana} · ${estadoChip(c.estado)}</div>
+    <div class="kpis" style="margin-bottom:16px">
+      ${kpiCard("H. objetivo",fmtH(c.horas_objetivo),"🎯","n","")}
+      ${kpiCard("H. reales",fmtH(c.horas_reales),"⏱️","n","")}
+      ${kpiCard("Avance",c.avance+" %","📈","n","")}
+    </div>
+    <div class="field"><label>Responsable / cuadrilla</label><div>👷 ${esc(c.responsable)} · ${esc((c.cuadrilla||[]).join(", "))}</div></div>
+    <div class="field"><label>Criterio de terminado</label><div class="hint">${esc(c.criterio||"—")}</div></div>
+    <div class="panel" style="box-shadow:none"><div class="cab"><h3 style="font-size:14px">📦 Material necesario <span class="chip ${(c.materiales||[]).every(m=>m.confirmado)&&(c.materiales||[]).length?'g':'w'}" style="padding:2px 7px;margin-left:6px">${(c.materiales||[]).every(m=>m.confirmado)&&(c.materiales||[]).length?'MATERIAL READY':'Pendiente'}</span></h3></div><div class="cuerpo">${mats}</div></div>
+    <div class="panel" style="box-shadow:none;margin-bottom:0"><div class="cab"><h3 style="font-size:14px">🚦 Restricciones <span class="chip ${R2CHIP[er]}" style="padding:2px 7px;margin-left:6px">${R2TXT[er]}</span></h3></div><div class="cuerpo">${rests}</div></div>
+  `, ok:"Cerrar", soloOk:true});
+}
+
+function nuevoObjetivo(obraId){
+  const famOpts=FAMILIAS.map(f=>`<option value="${f.id}">${f.emo} ${f.nom}</option>`).join("");
+  modal({titulo:"Nuevo objetivo productivo",cuerpo:`
+    <div class="field"><label>Familia productiva</label><select id="o_fam">${famOpts}</select></div>
+    <div class="field"><label>Título / descripción</label><input id="o_ti" placeholder="Ej. Canalizaciones Zona A"></div>
+    <div class="field"><div class="row">
+      <div><label>Responsable</label><input id="o_resp" value="Marcos"></div>
+      <div><label>Horas objetivo</label><input type="number" id="o_hr" value="40" min="0"></div>
+    </div></div>
+    <div class="field"><label>Semana</label>
+      <div class="seg" id="o_sem">${[1,2,3,4].map((s,i)=>`<button data-v="${s}" class="${i===0?'on':''}">S+${s}</button>`).join("")}</div></div>
+    <div class="field"><label>Criterio de terminado</label><textarea id="o_cri" placeholder="Qué debe cumplirse para considerarlo terminado"></textarea></div>`,
+    ok:"Crear objetivo", onOk:()=>{
+      const ti=$("#o_ti").value.trim(); if(!ti){ toast("Pon un título"); return false; }
+      const sem=+($("#o_sem button.on")?.dataset.v||1);
+      DB.compromisos.push({id:uid("c"),obra:obraId,familia:$("#o_fam").value,titulo:ti,responsable:$("#o_resp").value.trim()||"—",
+        cuadrilla:[$("#o_resp").value.trim()||"—"],semana:sem,ini:ISO(hoy()),fin:ISO(hoy()),
+        horas_objetivo:+$("#o_hr").value||0,horas_reales:0,avance:0,estado:sem===1?"planificado":"previsto",
+        criterio:$("#o_cri").value.trim(),materiales:[],restricciones:[{id:uid("r"),tipo:"Zona",estado:"ready",nota:""}]});
+      guardar(); vistaObra(); toast("Objetivo creado"); return true;
+    }, after:()=> segUnico("o_sem")});
+}
+
+function nuevaDesviacion(obraId){
+  const famOpts=FAMILIAS.map(f=>`<option value="${f.id}">${f.emo} ${f.nom}</option>`).join("");
+  const causaOpts=CAUSAS.map(c=>`<option value="${c}">${CAUSA_TXT[c]}</option>`).join("");
+  modal({titulo:"Registrar desviación",cuerpo:`
+    <div class="field"><label>Familia</label><select id="d_fam">${famOpts}</select></div>
+    <div class="field"><label>Trabajo</label><input id="d_ti" placeholder="Descripción"></div>
+    <div class="field"><div class="row">
+      <div><label>Horas objetivo</label><input type="number" id="d_t" value="0"></div>
+      <div><label>Horas reales</label><input type="number" id="d_r" value="0"></div>
+    </div></div>
+    <div class="field"><label>Causa</label><select id="d_c">${causaOpts}</select></div>
+    <div class="field"><label>Nota</label><textarea id="d_n"></textarea></div>`,
+    ok:"Registrar", onOk:()=>{
+      const ti=$("#d_ti").value.trim(); if(!ti){ toast("Pon una descripción"); return false; }
+      DB.desviaciones.push({id:uid("d"),obra:obraId,familia:$("#d_fam").value,titulo:ti,target:+$("#d_t").value||0,real:+$("#d_r").value||0,causa:$("#d_c").value,nota:$("#d_n").value.trim(),fecha:ISO(hoy())});
+      guardar(); vistaObra(); toast("Desviación registrada"); return true;
+    }});
+}
+
+function nuevaObra(){
+  modal({titulo:"Nueva obra",cuerpo:`
+    <div class="field"><div class="row">
+      <div><label>Código</label><input id="n_cod" placeholder="EJ-25"></div>
+      <div><label>Nombre</label><input id="n_nom" placeholder="Nombre de la obra"></div>
+    </div></div>
+    <div class="field"><label>Cliente</label><input id="n_cli"></div>
+    <div class="field"><div class="row">
+      <div><label>Ingeniero</label><input id="n_ing"></div>
+      <div><label>Responsable</label><input id="n_resp" value="Ari"></div>
+    </div></div>
+    <div class="field"><div class="row">
+      <div><label>Fecha inicio</label><input type="date" id="n_ini" value="${ISO(hoy())}"></div>
+      <div><label>Fin contractual</label><input type="date" id="n_fin"></div>
+    </div></div>
+    <div class="field"><label>Horas presupuestadas (baseline)</label><input type="number" id="n_base" value="1000"></div>
+    <div class="hint">Después podrás repartir el baseline por familias y crear el plan maestro y los objetivos.</div>`,
+    ok:"Crear obra", onOk:()=>{
+      const nom=$("#n_nom").value.trim(); if(!nom){ toast("Pon un nombre"); return false; }
+      const base=+$("#n_base").value||0; const id=uid("obra");
+      const a={created_by:DB.rolActual,created_at:ISO(hoy()),updated_by:DB.rolActual,updated_at:ISO(hoy())};
+      DB.proyectos.push({id,codigo:$("#n_cod").value.trim()||id.slice(-4),nombre:nom,cliente:$("#n_cli").value.trim(),
+        ingeniero:$("#n_ing").value.trim()||"—",responsable:$("#n_resp").value.trim()||"Ari",
+        fecha_inicio:$("#n_ini").value,fecha_fin_contractual:$("#n_fin").value||$("#n_ini").value,
+        baseline_horas:base,...a,baselines:[{familia:"otros",horas:base}],plan:[],certificacion:{objetivo_mes:0,prevista:0}});
+      DB.consumo[id]=0; DB.restante[id]=base;
+      guardar(); DB.obraActual=id; vistaProduccion(); toast("Obra creada"); return true;
+    }});
+}
+
+/* ===================================================================
+   VISTA · AJUSTES (semáforos, sección 26)
+   =================================================================== */
+function vistaAjustes(){
+  const c=DB.config;
+  $('[data-vista="ajustes"]').innerHTML=`
+  <div class="pagehead"><div><h2>Ajustes</h2><div class="desc">Umbrales de semáforo configurables · evita criterios arbitrarios</div></div></div>
+  <div class="panel"><div class="cab"><h3>🚦 Desviación de horas</h3></div><div class="cuerpo">
+    <div class="field"><div class="row">
+      <div><label>Verde hasta (%)</label><input type="number" id="dg" value="${c.desv.green}"></div>
+      <div><label>Ámbar hasta (%)</label><input type="number" id="dw" value="${c.desv.warn}"></div>
+    </div></div>
+    <div class="mini">0–${c.desv.green}% verde · ${c.desv.green}–${c.desv.warn}% ámbar · &gt;${c.desv.warn}% crítico</div>
+  </div></div>
+  <div class="panel"><div class="cab"><h3>✅ PPC — Percent Plan Complete</h3></div><div class="cuerpo">
+    <div class="field"><div class="row">
+      <div><label>Verde desde (%)</label><input type="number" id="pg" value="${c.ppc.green}"></div>
+      <div><label>Ámbar desde (%)</label><input type="number" id="pw" value="${c.ppc.warn}"></div>
+    </div></div>
+    <div class="mini">≥${c.ppc.green}% verde · ${c.ppc.warn}–${c.ppc.green}% ámbar · &lt;${c.ppc.warn}% crítico</div>
+  </div></div>
+  <button class="btn btn-pri" onclick="guardarConfig()">Guardar ajustes</button>
+  <div class="panel" style="margin-top:22px"><div class="cab"><h3>ℹ️ Acerca de</h3></div><div class="cuerpo">
+    <div class="mini" style="line-height:1.6">
+      MVP del Sistema Operativo de Producción de Frío 7 · piloto <b>Espacio Joven</b>.<br>
+      Datos guardados en este navegador (localStorage). Estructura calcada del modelo Supabase del PRD para migración futura.<br>
+      Fases 2–5 (preventivo, correctivo, incentivos, compras) no implementadas todavía, arquitectura preparada.
+    </div>
+  </div></div>`;
+}
+function guardarConfig(){
+  DB.config.desv.green=+$("#dg").value||5; DB.config.desv.warn=+$("#dw").value||10;
+  DB.config.ppc.green=+$("#pg").value||85; DB.config.ppc.warn=+$("#pw").value||70;
+  guardar(); toast("Ajustes guardados");
+}
+
+/* ===================================================================
+   MODAL genérico
+   =================================================================== */
+function modal({titulo,cuerpo,ok="Aceptar",okCls="btn-pri",onOk,after,soloOk,ancho}){
+  const m=$("#modal");
+  m.style.maxWidth = ancho?"640px":"520px";
+  m.innerHTML=`
+    <div class="mh"><h3>${esc(titulo)}</h3><div class="sep"></div><button class="x" onclick="cerrarModal()">✕</button></div>
+    <div class="mb">${cuerpo}</div>
+    <div class="mf">
+      ${soloOk?"":`<button class="btn btn-ghost" onclick="cerrarModal()">Cancelar</button>`}
+      <button class="btn ${okCls}" id="mOk">${esc(ok)}</button>
+    </div>`;
+  $("#ov").classList.add("on");
+  $("#mOk").onclick=()=>{ if(!onOk){ cerrarModal(); return; } const r=onOk(); if(r!==false) cerrarModal(); };
+  if(after) after();
+}
+function cerrarModal(){ $("#ov").classList.remove("on"); }
+$("#ov").addEventListener("click",e=>{ if(e.target.id==="ov") cerrarModal(); });
+
+/* ===================================================================
+   EVENTOS GLOBALES / ARRANQUE
+   =================================================================== */
+$("#rolSel").addEventListener("change",e=>{ DB.rolActual=e.target.value; guardar(); render(); });
+$("#btnReset").addEventListener("click",()=>{
+  modal({titulo:"Reiniciar datos de demo",cuerpo:`<div class="hint bad">Esto borra todos los cambios y restaura el piloto Espacio Joven. ¿Continuar?</div>`,
+    ok:"Sí, reiniciar", okCls:"btn-pri", onOk:()=>{ DB=semilla(); guardar(); render(); toast("Datos restaurados"); return true; }});
+});
+$("#btnAjustes").addEventListener("click",()=> irA("ajustes"));
+
+// arranque
+if(!cargar()){ DB=semilla(); guardar(); }
+render();
+window.irA=irA; window.abrirObra=abrirObra; window.ordenar=ordenar; window.abrirObjetivo=abrirObjetivo;
+window.nuevoObjetivo=nuevoObjetivo; window.nuevaDesviacion=nuevaDesviacion; window.nuevaObra=nuevaObra;
+window.editarRestante=editarRestante; window.editarCert=editarCert; window.guardarConfig=guardarConfig;
+window.mAvance=mAvance; window.mBloqueo=mBloqueo; window.mMaterial=mMaterial; window.mTerminar=mTerminar;
+window.cerrarModal=cerrarModal;
+</script>
+</body>
+</html>
