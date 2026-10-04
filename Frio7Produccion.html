@@ -6,6 +6,8 @@
 <title>Frío 7 · Producción</title>
 <meta name="theme-color" content="#0f172a" />
 <meta name="apple-mobile-web-app-title" content="Frío 7 Producción" />
+<link rel="icon" type="image/jpeg" href="/logotipo.jpg" />
+<link rel="apple-touch-icon" href="/logotipo.jpg" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
@@ -72,11 +74,10 @@
     border-bottom:1px solid #1e293b;padding-top:max(11px,env(safe-area-inset-top));
   }
   .marca{display:flex;align-items:center;gap:11px;min-width:0;}
-  .logo{
-    width:38px;height:38px;border-radius:9px;flex:0 0 auto;background:var(--accent);
-    display:flex;align-items:center;justify-content:center;color:#fff;
-    font-family:var(--mono);font-weight:700;font-size:15px;letter-spacing:-.5px;
-  }
+  .brandlogo{display:inline-flex;align-items:center;gap:9px;background:#fff;border-radius:9px;padding:5px 10px;flex:0 0 auto;}
+  .brandlogo img{height:24px;width:auto;display:block;}
+  .brandlogo .cl{height:26px;width:auto;display:block;}
+  .brandlogo .div{width:1px;height:22px;background:var(--line);}
   .marca .n{font-weight:700;font-size:16px;line-height:1.1;letter-spacing:-.2px;white-space:nowrap;}
   .marca .s{font-size:11.5px;color:#94a3b8;font-weight:500;margin-top:1px;}
   .top .sep{flex:1;}
@@ -305,9 +306,11 @@
 
 <header class="top">
   <div class="marca">
-    <div class="logo">F7</div>
+    <span class="brandlogo">
+      <img src="/logotipo.jpg" alt="Frío 7" />
+    </span>
     <div>
-      <div class="n">Frío 7 · Producción</div>
+      <div class="n">Producción</div>
       <div class="s">Sistema operativo de producción</div>
     </div>
   </div>

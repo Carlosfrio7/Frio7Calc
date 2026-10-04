@@ -6,6 +6,8 @@
 <title>Frío 7 · Herramientas</title>
 <meta name="theme-color" content="#0f172a" />
 <meta name="description" content="Herramientas de Frío 7 / CL Frío" />
+<link rel="icon" type="image/jpeg" href="/logotipo.jpg" />
+<link rel="apple-touch-icon" href="/logotipo.jpg" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@600;700&display=swap" rel="stylesheet" />
@@ -22,7 +24,8 @@
   svg.ic{vertical-align:middle;flex:0 0 auto;}
 
   .top{display:flex;align-items:center;gap:12px;padding:16px 20px;background:var(--ink);color:#fff;padding-top:max(16px,env(safe-area-inset-top));}
-  .logo{width:42px;height:42px;border-radius:10px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:700;font-size:16px;}
+  .brandlogo{display:inline-flex;align-items:center;background:#fff;border-radius:10px;padding:6px 11px;}
+  .brandlogo img{height:26px;width:auto;display:block;}
   .top .n{font-weight:700;font-size:17px;letter-spacing:-.2px;}
   .top .s{font-size:12px;color:#94a3b8;margin-top:1px;}
 
@@ -48,7 +51,7 @@
 </head>
 <body>
   <header class="top">
-    <div class="logo">F7</div>
+    <span class="brandlogo"><img src="/logotipo.jpg" alt="Frío 7" /></span>
     <div><div class="n">Frío 7</div><div class="s">Herramientas</div></div>
   </header>
 
