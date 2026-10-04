@@ -2,21 +2,93 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Mi Horario Semanal</title>
-<link rel="icon" type="image/jpeg" href="logo-plan-semanal.jpg" />
-<link rel="apple-touch-icon" href="logo-plan-semanal.jpg" />
-<meta http-equiv="refresh" content="0; url=HorarioInfantil.html" />
-<link rel="canonical" href="HorarioInfantil.html" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Frío 7 · Herramientas</title>
+<meta name="theme-color" content="#0f172a" />
+<meta name="description" content="Herramientas de Frío 7 / CL Frío" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@600;700&display=swap" rel="stylesheet" />
 <style>
-  body{font-family:system-ui,sans-serif;background:#f5f2ff;color:#3a2d6b;
-    display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center;}
-  a{color:#7c5cff;font-weight:700;}
+  :root{
+    --bg:#f1f5f9; --surface:#fff; --surface-2:#f8fafc;
+    --text:#0f172a; --muted:#64748b; --line:#e2e8f0; --line-2:#cbd5e1;
+    --accent:#2563eb; --accent-700:#1d4ed8; --accent-weak:#eff6ff;
+    --ink:#0f172a; --r:12px;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'IBM Plex Sans',system-ui,sans-serif;color:var(--text);background:var(--bg);min-height:100vh;}
+  svg.ic{vertical-align:middle;flex:0 0 auto;}
+
+  .top{display:flex;align-items:center;gap:12px;padding:16px 20px;background:var(--ink);color:#fff;padding-top:max(16px,env(safe-area-inset-top));}
+  .logo{width:42px;height:42px;border-radius:10px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:700;font-size:16px;}
+  .top .n{font-weight:700;font-size:17px;letter-spacing:-.2px;}
+  .top .s{font-size:12px;color:#94a3b8;margin-top:1px;}
+
+  .wrap{max-width:1040px;margin:0 auto;padding:34px 20px 70px;}
+  .hero{margin-bottom:26px;}
+  .hero h1{font-size:25px;font-weight:700;letter-spacing:-.5px;}
+  .hero p{color:var(--muted);margin-top:6px;font-size:14.5px;}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;}
+  .card{display:flex;flex-direction:column;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;text-decoration:none;color:inherit;transition:border-color .12s,background .12s;position:relative;}
+  .card:hover{border-color:var(--line-2);background:var(--surface-2);}
+  .card .ib{width:44px;height:44px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--muted);}
+  .card h3{font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px;}
+  .card p{color:var(--muted);font-size:13px;line-height:1.45;flex:1;}
+  .card .go{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--accent);}
+  .card.feat{border-color:var(--accent);background:linear-gradient(180deg,var(--accent-weak),#fff);}
+  .card.feat .ib{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .tag{position:absolute;top:14px;right:14px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--accent-700);background:var(--accent-weak);border:1px solid #bfdbfe;border-radius:6px;padding:3px 7px;}
+
+  .foot{margin-top:30px;color:var(--muted);font-size:12px;text-align:center;}
+  @media(max-width:520px){.hero h1{font-size:21px;}}
 </style>
 </head>
 <body>
-  <p>Cargando <strong>Mi Horario Semanal</strong>… 🗓️<br />
-  Si no se abre solo, pulsa aquí 👉 <a href="HorarioInfantil.html">Abrir horario</a></p>
-  <script>location.replace("HorarioInfantil.html");</script>
+  <header class="top">
+    <div class="logo">F7</div>
+    <div><div class="n">Frío 7</div><div class="s">Herramientas</div></div>
+  </header>
+
+  <main class="wrap">
+    <div class="hero">
+      <h1>Herramientas de Frío 7</h1>
+      <p>Elige una herramienta para empezar.</p>
+    </div>
+
+    <div class="grid" id="grid"></div>
+
+    <div class="foot">Frío 7 · CL Frío</div>
+  </main>
+
+<script>
+  const I = {
+    gauge:'<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>',
+    calendar:'<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/>',
+    school:'<path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>',
+    music:'<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
+    snow:'<line x1="2" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="22"/><path d="m20 16-4-4 4-4M4 8l4 4-4 4M16 4l-4 4-4-4M8 20l4-4 4 4"/>',
+    arrow:'<path d="M5 12h14M12 5l7 7-7 7"/>',
+  };
+  const ic=(n,s=22)=>`<svg class="ic" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[n]||""}</svg>`;
+
+  const tools = [
+    {href:"Frio7Produccion.html", icon:"gauge", feat:true, tag:"Nuevo", t:"Producción", d:"Sistema operativo de producción: obras, presupuesto productivo, lookahead, desviaciones y dashboards."},
+    {href:"CalculadoraHVACPRO.html", icon:"snow", t:"Calculadora HVAC", d:"Cálculo de cargas y selección para climatización y refrigeración."},
+    {href:"HorarioColegio.html", icon:"school", t:"Horario del colegio", d:"Horario escolar editable con vista móvil por día."},
+    {href:"HorarioInfantil.html", icon:"calendar", t:"Plan semanal", d:"Planificador semanal visual con arrastrar y soltar."},
+    {href:"AfinadorGuitarra.html", icon:"music", t:"Afinador de guitarra", d:"Afinador cromático desde el navegador."},
+  ];
+  document.getElementById("grid").innerHTML = tools.map(x=>`
+    <a class="card ${x.feat?'feat':''}" href="${x.href}">
+      ${x.tag?`<span class="tag">${x.tag}</span>`:""}
+      <div class="ib">${ic(x.icon)}</div>
+      <h3>${x.t}</h3>
+      <p>${x.d}</p>
+      <span class="go">Abrir ${ic("arrow",15)}</span>
+    </a>`).join("");
+</script>
 </body>
 </html>
