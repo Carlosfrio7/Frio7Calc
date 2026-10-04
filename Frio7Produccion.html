@@ -342,6 +342,7 @@ const $$ = (s,c=document)=>Array.from(c.querySelectorAll(s));
 const uid = (p="id")=>p+"_"+Math.random().toString(36).slice(2,9);
 const esc = s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const fmtH = n=>{ n=Math.round((+n||0)); return n.toLocaleString("es-ES")+" h"; };
+const fmtEur = n=> (Math.round((+n||0))).toLocaleString("es-ES")+" €";
 const fmtPct = n=> (Math.round((+n||0)*10)/10).toLocaleString("es-ES")+" %";
 const hoy = ()=> new Date();
 const ISO = d=> d.toISOString().slice(0,10);
@@ -516,8 +517,11 @@ function semilla(){
   const compras_urgentes = [{id:uid("cu"),obra:"obra_ej",trabajador:"Marcos",prov:"Elecmat",motivo:"Falta de bridas",desc:"Bridas y tornillería",importe:48,tiempo_perdido:1.5,fecha:semStart(0)}];
 
   return {version:2,rolActual:"direccion",obraActual:"obra_ej",proyectos,compromisos:comp,desviaciones,retrabajos,compras_urgentes,consumo,restante,
-    config:{desv:{green:5,warn:10},ppc:{green:85,warn:70}}};
+    config:{desv:{green:5,warn:10},ppc:{green:85,warn:70},precioHora:35}};
 }
+
+/* precio/hora: de la obra si lo tiene, si no el global de config */
+function rateObra(p){ const r=p&&+p.precio_hora; return (r&&r>0)?r:(+DB.config.precioHora||0); }
 
 /* ===================================================================
    MOTOR DE KPIs
@@ -539,7 +543,11 @@ function kpiObra(p){
   const rwH=DB.retrabajos.filter(r=>r.obra===p.id).reduce((s,r)=>s+(+r.horas||0),0);
   const semDesv=semaforoDesv(desvPct), semPpc=ppc==null?"x":semaforoPpc(ppc);
   const riesgo=peor([semDesv,semPpc,diasRest<0?"c":"g",(certPct!=null&&certPct<90)?"w":"g"]);
-  return {baseline,actual,rem,eac,vac,desvH,desvPct,avance,ppc,cert,certPct,diasRest,rwH,semDesv,semPpc,riesgo};
+  // conversión a euros
+  const rate=rateObra(p);
+  const eurBaseline=baseline*rate, eurActual=actual*rate, eurEac=eac*rate, eurVac=vac*rate, eurDesv=desvH*rate, eurRw=rwH*rate;
+  return {baseline,actual,rem,eac,vac,desvH,desvPct,avance,ppc,cert,certPct,diasRest,rwH,semDesv,semPpc,riesgo,
+          rate,eurBaseline,eurActual,eurEac,eurVac,eurDesv,eurRw};
 }
 function semaforoDesv(pct){ const c=DB.config.desv,a=Math.abs(pct); if(a<=c.green)return"g"; if(a<=c.warn)return"w"; return"c"; }
 function semaforoPpc(pct){ const c=DB.config.ppc; if(pct>=c.green)return"g"; if(pct>=c.warn)return"w"; return"c"; }
@@ -549,9 +557,11 @@ const SEM_RIESGO={g:"Bajo",w:"Medio",c:"Alto",x:"—"};
 
 function kpiGlobal(){
   let baseline=0,actual=0,eac=0,vac=0,enRiesgo=0,rwH=0,ppcNum=0,ppcDen=0,certObj=0,certPrev=0;
+  let eurEac=0,eurVac=0,eurDesv=0,eurBaseline=0;
   DB.proyectos.forEach(p=>{
     const k=kpiObra(p);
     baseline+=k.baseline;actual+=k.actual;eac+=k.eac;vac+=k.vac;rwH+=k.rwH;
+    eurEac+=k.eurEac;eurVac+=k.eurVac;eurDesv+=k.eurDesv;eurBaseline+=k.eurBaseline;
     if(k.riesgo==="c"||k.riesgo==="w")enRiesgo++;
     const comps=compsDe(p.id);
     ppcDen+=comps.filter(c=>["planificado","curso","terminado"].includes(c.estado)).length;
@@ -559,7 +569,7 @@ function kpiGlobal(){
     certObj+=k.cert.objetivo_mes||0;certPrev+=k.cert.prevista||0;
   });
   const ppc=ppcDen?ppcNum/ppcDen*100:null, desvPct=baseline?(eac-baseline)/baseline*100:0;
-  return {obras:DB.proyectos.length,baseline,actual,eac,vac,desvPct,ppc,enRiesgo,rwH,certObj,certPrev};
+  return {obras:DB.proyectos.length,baseline,actual,eac,vac,desvPct,ppc,enRiesgo,rwH,certObj,certPrev,eurEac,eurVac,eurDesv,eurBaseline};
 }
 
 function alertas(){
@@ -635,8 +645,9 @@ function vistaDireccion(){
       ${kpiCard("Obras activas",g.obras,"folder","n","")}
       ${kpiCard("Horas presupuestadas",fmtH(g.baseline),"target","n","Baseline total")}
       ${kpiCard("Horas consumidas",fmtH(g.actual),"clock","n",`${Math.round(g.actual/g.baseline*100)} % del baseline`)}
-      ${kpiCard("EAC total",fmtH(g.eac),"gauge",sDesv,"Previsión a terminación")}
+      ${kpiCard("EAC total",fmtH(g.eac),"gauge",sDesv,fmtEur(g.eurEac)+" previsto")}
       ${kpiCard("Desviación prevista",(g.vac<0?"+":"")+fmtH(-g.vac),"trending",sDesv,fmtPct(g.desvPct)+" sobre baseline")}
+      ${kpiCard("Sobrecoste previsto",(g.eurDesv>=0?"+":"")+fmtEur(g.eurDesv),"euro",sDesv,"Desviación en euros")}
       ${kpiCard("PPC medio",g.ppc==null?"—":Math.round(g.ppc)+" %","checkCircle",sPpc,"Compromisos cumplidos")}
       ${kpiCard("Certificación",certPct==null?"—":Math.round(certPct)+" %","euro",certPct!=null&&certPct<90?"w":"g","Prevista vs objetivo")}
       ${kpiCard("Obras en riesgo",g.enRiesgo,"alert",g.enRiesgo?"c":"g","Vigilar / crítico")}
@@ -669,7 +680,7 @@ function vistaProduccion(){
       <button class="btn btn-pri btn-sm" onclick="nuevaObra()">${ICON("plus",15)} Nueva obra</button></div>
     <div class="panel"><div class="cuerpo flush"><div class="tabla-wrap">${tablaObras()}</div></div></div>`;
 }
-const COLS=[{k:"obra",t:"Obra"},{k:"ingeniero",t:"Ingeniero"},{k:"avance",t:"Avance"},{k:"baseline",t:"Baseline"},{k:"actual",t:"Consumidas"},{k:"eac",t:"EAC"},{k:"desvPct",t:"Desviación"},{k:"ppc",t:"PPC"},{k:"certPct",t:"Cert."},{k:"diasRest",t:"Plazo"},{k:"riesgo",t:"Riesgo"}];
+const COLS=[{k:"obra",t:"Obra"},{k:"ingeniero",t:"Ingeniero"},{k:"avance",t:"Avance"},{k:"baseline",t:"Baseline"},{k:"actual",t:"Consumidas"},{k:"eac",t:"EAC"},{k:"desvPct",t:"Desviación"},{k:"eurDesv",t:"Desv. €"},{k:"ppc",t:"PPC"},{k:"certPct",t:"Cert."},{k:"diasRest",t:"Plazo"},{k:"riesgo",t:"Riesgo"}];
 function tablaObras(){
   const rows=DB.proyectos.map(p=>({p,k:kpiObra(p)}));
   const o=ordenProd;
@@ -693,6 +704,7 @@ function tablaObras(){
       <td class="num">${fmtH(k.actual)}</td>
       <td class="num">${fmtH(k.eac)}</td>
       <td><span class="chip ${k.semDesv}">${k.vac<0?"+":""}${fmtH(Math.abs(k.desvH))} · ${fmtPct(k.desvPct)}</span></td>
+      <td class="num ${k.eurDesv>0?'':''}" style="color:${k.semDesv==='c'?'var(--bad)':k.semDesv==='w'?'var(--warn)':'var(--text)'}">${k.eurDesv>=0?"+":""}${fmtEur(k.eurDesv)}</td>
       <td>${k.ppc==null?'<span class="chip x">—</span>':`<span class="chip ${k.semPpc}">${Math.round(k.ppc)}%</span>`}</td>
       <td>${k.certPct==null?'—':`<span class="chip ${k.certPct<90?'w':'g'}">${Math.round(k.certPct)}%</span>`}</td>
       <td><span class="chip ${k.diasRest<0?'c':k.diasRest<14?'w':'g'}">${k.diasRest<0?Math.abs(k.diasRest)+'d tarde':k.diasRest+'d'}</span></td>
@@ -714,12 +726,16 @@ function vistaObra(){
     <div class="pagehead"><div><h2>${esc(p.nombre)}</h2><div class="desc">${esc(p.codigo)} · ${esc(p.cliente)} · Ingeniero: ${esc(p.ingeniero)} · Resp.: ${esc(p.responsable)}</div></div>
       <div class="sep"></div><select class="obra-sel" onchange="abrirObra(this.value)">${sel}</select></div>
     <div class="kpis">
-      ${kpiCard("Baseline",fmtH(k.baseline),"target","n","Horas presupuestadas")}
-      ${kpiCard("Consumidas",fmtH(k.actual),"clock","n","ACTUAL_HOURS")}
-      ${kpiCard("Restantes (est.)",fmtH(k.rem),"ruler","n","REMAINING_ESTIMATE")}
-      ${kpiCard("EAC",fmtH(k.eac),"gauge",k.semDesv,"Estimate At Completion")}
-      ${kpiCard("VAC",(k.vac<0?"":"+")+fmtH(k.vac),"activity",k.semDesv,k.vac<0?"Previsión de sobrecoste":"Dentro de presupuesto")}
+      ${kpiCard("Baseline",fmtH(k.baseline),"target","n",fmtEur(k.eurBaseline))}
+      ${kpiCard("Consumidas",fmtH(k.actual),"clock","n",fmtEur(k.eurActual))}
+      ${kpiCard("Restantes (est.)",fmtH(k.rem),"ruler","n",fmtEur(k.rem*k.rate))}
+      ${kpiCard("EAC",fmtH(k.eac),"gauge",k.semDesv,fmtEur(k.eurEac)+" previsto")}
+      ${kpiCard("VAC",(k.vac<0?"":"+")+fmtH(k.vac),"activity",k.semDesv,(k.eurVac<0?"":"+")+fmtEur(k.eurVac)+(k.vac<0?" sobrecoste":""))}
       ${kpiCard("PPC obra",k.ppc==null?"—":Math.round(k.ppc)+" %","checkCircle",k.semPpc,"Compromisos cumplidos")}
+    </div>
+    <div style="margin:-8px 0 20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span class="pill-info">${ICON("euro",14)} Precio hora: ${fmtEur(k.rate)}/h ${p.precio_hora?"(obra)":"(general)"}</span>
+      <button class="btn btn-ghost btn-sm" onclick="editarPrecio('${p.id}')">Cambiar precio/hora</button>
     </div>
     <div class="subtabs" id="subtabs">
       ${subBtn("resumen","Resumen")}${subBtn("plan","Plan maestro")}${subBtn("lookahead","Lookahead 4 sem.")}
@@ -760,6 +776,13 @@ function editarRestante(id){
     <div class="hint" style="margin-bottom:14px">${ICON("info",16)}<span>Actualiza la previsión de horas que faltan. Recalcula el EAC y la desviación prevista, sin tocar el baseline.</span></div>
     <div class="field"><label>Horas restantes estimadas</label><input type="number" id="f_rem" value="${k.rem}" min="0"></div>`,
     ok:"Guardar",onOk:()=>{DB.restante[id]=Math.max(0,+$("#f_rem").value||0);guardar();vistaObra();toast("Previsión actualizada");return true;}});
+}
+function editarPrecio(id){
+  const p=P(id);
+  modal({titulo:"Precio por hora de la obra",cuerpo:`
+    <div class="hint" style="margin-bottom:14px">${ICON("info",16)}<span>Convierte las horas en euros en toda la obra. Déjalo vacío para usar el precio general de Ajustes (${fmtEur(DB.config.precioHora)}/h).</span></div>
+    <div class="field"><label>Precio hora de esta obra (€/h)</label><input type="number" id="f_ph" value="${p.precio_hora||""}" min="0" step="0.5" placeholder="General: ${DB.config.precioHora}"></div>`,
+    ok:"Guardar",onOk:()=>{const v=+$("#f_ph").value||0;p.precio_hora=v>0?v:0;guardar();vistaObra();toast("Precio/hora actualizado");return true;}});
 }
 function subPlan(p){
   const inicio=p.plan.reduce((m,f)=>f.ini<m?f.ini:m,p.plan[0]?.ini||ISO(hoy()));
@@ -1013,15 +1036,18 @@ function nuevaObra(){
     <div class="field"><label>Cliente</label><input id="n_cli"></div>
     <div class="field"><div class="row"><div><label>Ingeniero</label><input id="n_ing"></div><div><label>Responsable</label><input id="n_resp" value="Ari"></div></div></div>
     <div class="field"><div class="row"><div><label>Fecha inicio</label><input type="date" id="n_ini" value="${ISO(hoy())}"></div><div><label>Fin contractual</label><input type="date" id="n_fin"></div></div></div>
-    <div class="field"><label>Horas presupuestadas (baseline)</label><input type="number" id="n_base" value="1000"></div>`,
-    ok:"Crear obra",onOk:()=>{const nom=$("#n_nom").value.trim();if(!nom){toast("Pon un nombre","alert");return false;}const base=+$("#n_base").value||0,id=uid("obra"),a={created_by:DB.rolActual,created_at:ISO(hoy()),updated_by:DB.rolActual,updated_at:ISO(hoy())};DB.proyectos.push({id,codigo:$("#n_cod").value.trim()||id.slice(-4),nombre:nom,cliente:$("#n_cli").value.trim(),ingeniero:$("#n_ing").value.trim()||"—",responsable:$("#n_resp").value.trim()||"Ari",fecha_inicio:$("#n_ini").value,fecha_fin_contractual:$("#n_fin").value||$("#n_ini").value,baseline_horas:base,...a,baselines:[{familia:"otros",horas:base}],plan:[],certificacion:{objetivo_mes:0,prevista:0}});DB.consumo[id]=0;DB.restante[id]=base;guardar();DB.obraActual=id;vistaProduccion();toast("Obra creada");return true;}});
+    <div class="field"><div class="row"><div><label>Horas presupuestadas (baseline)</label><input type="number" id="n_base" value="1000"></div><div><label>Precio hora (€/h)</label><input type="number" id="n_ph" min="0" step="0.5" placeholder="General: ${DB.config.precioHora}"></div></div></div>`,
+    ok:"Crear obra",onOk:()=>{const nom=$("#n_nom").value.trim();if(!nom){toast("Pon un nombre","alert");return false;}const base=+$("#n_base").value||0,ph=+$("#n_ph").value||0,id=uid("obra"),a={created_by:DB.rolActual,created_at:ISO(hoy()),updated_by:DB.rolActual,updated_at:ISO(hoy())};DB.proyectos.push({id,codigo:$("#n_cod").value.trim()||id.slice(-4),nombre:nom,cliente:$("#n_cli").value.trim(),ingeniero:$("#n_ing").value.trim()||"—",responsable:$("#n_resp").value.trim()||"Ari",fecha_inicio:$("#n_ini").value,fecha_fin_contractual:$("#n_fin").value||$("#n_ini").value,baseline_horas:base,precio_hora:ph,...a,baselines:[{familia:"otros",horas:base}],plan:[],certificacion:{objetivo_mes:0,prevista:0}});DB.consumo[id]=0;DB.restante[id]=base;guardar();DB.obraActual=id;vistaProduccion();toast("Obra creada");return true;}});
 }
 
 /* ---- Ajustes ---- */
 function vistaAjustes(){
   const c=DB.config;
   $('[data-vista="ajustes"]').innerHTML=`
-  <div class="pagehead"><div><h2>Ajustes</h2><div class="desc">Umbrales de semáforo configurables · evita criterios arbitrarios</div></div></div>
+  <div class="pagehead"><div><h2>Ajustes</h2><div class="desc">Precio por hora y umbrales de semáforo</div></div></div>
+  <div class="panel"><div class="cab"><h3>${ICON("euro",16)} Precio por hora (general)</h3></div><div class="cuerpo">
+    <div class="field"><label>Precio hora por defecto (€/h)</label><input type="number" id="ph" value="${c.precioHora}" min="0" step="0.5"></div>
+    <div class="mini">Convierte las horas en euros en toda la app. Cada obra puede tener su propio precio/hora (en la pestaña Resumen de la obra).</div></div></div>
   <div class="panel"><div class="cab"><h3>${ICON("trending",16)} Desviación de horas</h3></div><div class="cuerpo">
     <div class="field"><div class="row"><div><label>Verde hasta (%)</label><input type="number" id="dg" value="${c.desv.green}"></div><div><label>Ámbar hasta (%)</label><input type="number" id="dw" value="${c.desv.warn}"></div></div></div>
     <div class="mini">0–${c.desv.green}% verde · ${c.desv.green}–${c.desv.warn}% ámbar · &gt;${c.desv.warn}% crítico</div></div></div>
@@ -1036,7 +1062,7 @@ function vistaAjustes(){
     Fases 2–5 (preventivo, correctivo, incentivos, compras) no implementadas, arquitectura preparada.
   </div></div></div>`;
 }
-function guardarConfig(){ DB.config.desv.green=+$("#dg").value||5;DB.config.desv.warn=+$("#dw").value||10;DB.config.ppc.green=+$("#pg").value||85;DB.config.ppc.warn=+$("#pw").value||70;guardar();toast("Ajustes guardados"); }
+function guardarConfig(){ DB.config.precioHora=Math.max(0,+$("#ph").value||0);DB.config.desv.green=+$("#dg").value||5;DB.config.desv.warn=+$("#dw").value||10;DB.config.ppc.green=+$("#pg").value||85;DB.config.ppc.warn=+$("#pw").value||70;guardar();toast("Ajustes guardados"); }
 
 /* ---- Modal ---- */
 function modal({titulo,cuerpo,ok="Aceptar",onOk,after,soloOk,ancho}){
@@ -1057,7 +1083,7 @@ $("#btnAjustes").addEventListener("click",()=>{ if(ROLES[DB.rolActual].vistas.in
 
 if(!cargar()){ DB=semilla(); guardar(); }
 render();
-Object.assign(window,{irA,abrirObra,ordenar,abrirObjetivo,nuevoObjetivo,nuevaDesviacion,nuevaObra,editarRestante,editarCert,guardarConfig,mAvance,mBloqueo,mMaterial,mTerminar,cerrarModal});
+Object.assign(window,{irA,abrirObra,ordenar,abrirObjetivo,nuevoObjetivo,nuevaDesviacion,nuevaObra,editarRestante,editarPrecio,editarCert,guardarConfig,mAvance,mBloqueo,mMaterial,mTerminar,cerrarModal});
 </script>
 </body>
 </html>
