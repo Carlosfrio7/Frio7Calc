@@ -78,6 +78,7 @@
   .brandlogo img{height:24px;width:auto;display:block;}
   .brandlogo .cl{height:26px;width:auto;display:block;}
   .brandlogo .div{width:1px;height:22px;background:var(--line);}
+  .brandlogo.nocl .cl,.brandlogo.nocl .div{display:none;}
   .marca .n{font-weight:700;font-size:16px;line-height:1.1;letter-spacing:-.2px;white-space:nowrap;}
   .marca .s{font-size:11.5px;color:#94a3b8;font-weight:500;margin-top:1px;}
   .top .sep{flex:1;}
@@ -173,6 +174,13 @@
   .stbox{width:20px;height:20px;border-radius:5px;border:1.5px solid var(--line-2);background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;flex:0 0 auto;padding:0;}
   .stbox.on{background:var(--ok);border-color:var(--ok);}
   .stbox[disabled]{cursor:default;opacity:.9;}
+  .docgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;}
+  .doccard{border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--surface);}
+  .doccard .dc-body{padding:9px 11px;} .doccard .dc-nom{font-weight:600;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .doccard .dc-acc{display:flex;border-top:1px solid var(--line);}
+  .doccard .dc-acc button{flex:1;border:none;background:var(--surface);cursor:pointer;padding:9px;font-size:12px;font-weight:600;font-family:inherit;color:var(--text);display:flex;align-items:center;justify-content:center;gap:5px;}
+  .doccard .dc-acc button:hover{background:var(--surface-2);} .doccard .dc-acc button+button{border-left:1px solid var(--line);}
+  .avatar{width:30px;height:30px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:0 0 auto;}
 
   /* barra de avance */
   .bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;min-width:64px;flex:1;}
@@ -309,7 +317,9 @@
 
 <header class="top">
   <div class="marca">
-    <span class="brandlogo">
+    <span class="brandlogo nocl">
+      <img class="cl" src="/logo-cl.png" alt="CL Frío" onerror="this.closest('.brandlogo').classList.add('nocl')" onload="this.closest('.brandlogo').classList.remove('nocl')" />
+      <span class="div"></span>
       <img src="/logotipo.jpg" alt="Frío 7" />
     </span>
     <div>
@@ -330,6 +340,7 @@
   <section class="vista" data-vista="produccion"></section>
   <section class="vista" data-vista="obra"></section>
   <section class="vista" data-vista="encargado"></section>
+  <section class="vista" data-vista="equipo"></section>
   <section class="vista" data-vista="ajustes"></section>
 </main>
 
@@ -346,6 +357,19 @@ const uid = (p="id")=>p+"_"+Math.random().toString(36).slice(2,9);
 const esc = s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const fmtH = n=>{ n=Math.round((+n||0)); return n.toLocaleString("es-ES")+" h"; };
 const fmtEur = n=> (Math.round((+n||0))).toLocaleString("es-ES")+" €";
+/* ---- imágenes/archivos → dataURL (redimensiona imágenes para no saturar localStorage) ---- */
+function leerImagen(file,maxW,cb){
+  const r=new FileReader();
+  r.onload=e=>{ const img=new Image(); img.onload=()=>{
+    let w=img.width,h=img.height; if(w>maxW){h=Math.round(h*maxW/w);w=maxW;}
+    const c=document.createElement("canvas"); c.width=w; c.height=h;
+    c.getContext("2d").drawImage(img,0,0,w,h);
+    try{ cb(c.toDataURL("image/jpeg",0.72)); }catch(_){ toast("No se pudo procesar la imagen","alert"); }
+  }; img.onerror=()=>toast("Imagen no válida","alert"); img.src=e.target.result; };
+  r.readAsDataURL(file);
+}
+function leerArchivo(file,cb){ const r=new FileReader(); r.onload=e=>cb(e.target.result); r.readAsDataURL(file); }
+function guardarSeguro(){ try{ localStorage.setItem(LS_KEY,JSON.stringify(DB)); return true; }catch(e){ toast("Almacenamiento lleno: archivo demasiado grande para la demo","alert"); return false; } }
 const fmtPct = n=> (Math.round((+n||0)*10)/10).toLocaleString("es-ES")+" %";
 const hoy = ()=> new Date();
 const ISO = d=> d.toISOString().slice(0,10);
@@ -411,15 +435,16 @@ const fcode = f => `<span class="fcode">${f.cod}</span>`;
 
 /* ---------- roles ---------- */
 const ROLES = {
-  dir_general: {nom:"Dirección general (Carlos)", vistas:["direccion","produccion","obra","ajustes"]},
-  dir_tecnica: {nom:"Dirección técnica", vistas:["direccion","produccion","obra","ajustes"]},
-  ingeniero:   {nom:"Ingeniero de obra", vistas:["produccion","obra","ajustes"]},
+  dir_general: {nom:"Dirección general (Carlos)", vistas:["direccion","produccion","obra","equipo","ajustes"]},
+  dir_tecnica: {nom:"Dirección técnica", vistas:["direccion","produccion","obra","equipo","ajustes"]},
+  ingeniero:   {nom:"Ingeniero de obra", vistas:["produccion","obra","equipo","ajustes"]},
   encargado:   {nom:"Encargado / Oficial (Marcos)", vistas:["encargado"]},
 };
 const NAV_META = {
   direccion:  {et:"Dirección",  ic:"dashboard"},
   produccion: {et:"Producción", ic:"building"},
   obra:       {et:"Obra",       ic:"folder"},
+  equipo:     {et:"Equipo",     ic:"users"},
   encargado:  {et:"Mi trabajo", ic:"smartphone"},
   ajustes:    {et:"Ajustes",    ic:"settings"},
 };
@@ -432,7 +457,7 @@ const puedeGestionar = ()=> DB.rolActual==="ingeniero";     // crear tareas / va
 /* ===================================================================
    MODELO DE DATOS  (calcado del esquema Supabase, sección 29)
    =================================================================== */
-const LS_KEY = "FRIO7_PROD_V3";
+const LS_KEY = "FRIO7_PROD_V4";
 let DB = null;
 function guardar(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(DB)); }catch(e){} }
 function cargar(){ try{ const raw=localStorage.getItem(LS_KEY); if(raw){ DB=JSON.parse(raw); return true; } }catch(e){} return false; }
@@ -550,9 +575,27 @@ function semilla(){
     {id:uid("i"),tarea:"t_ej3",obra:"obra_ej",fecha:dia(0),horas:6,por:"Pedro",nota:"Montaje conducto",estado:"rechazada",validado_por:"Laura G.",validado_at:ISO(t)},
   ];
 
-  return {version:3,rolActual:"dir_general",obraActual:"obra_ej",proyectos,compromisos:comp,tareas,imputaciones,desviaciones,retrabajos,compras_urgentes,consumo,restante,
+  proyectos.forEach(p=>{ if(!("foto" in p)) p.foto=""; });
+  // ---- PERSONAS (operarios, encargados, ingenieros, dirección) y su acceso ----
+  const personas=[
+    {id:uid("u"),nombre:"Carlos",rol:"dir_general",email:"carlos@clfrio.es",tel:"",acceso:"activo"},
+    {id:uid("u"),nombre:"Ari",rol:"dir_tecnica",email:"ari@clfrio.es",tel:"",acceso:"activo"},
+    {id:uid("u"),nombre:"Laura G.",rol:"ingeniero",email:"laura@clfrio.es",tel:"",acceso:"activo"},
+    {id:uid("u"),nombre:"Javier M.",rol:"ingeniero",email:"javier@clfrio.es",tel:"",acceso:"activo"},
+    {id:uid("u"),nombre:"Marcos",rol:"encargado",email:"marcos@clfrio.es",tel:"600 11 22 33",acceso:"activo"},
+    {id:uid("u"),nombre:"Nacho",rol:"encargado",email:"",tel:"",acceso:"invitado"},
+    {id:uid("u"),nombre:"Pedro",rol:"operario",email:"",tel:"",acceso:"sin"},
+    {id:uid("u"),nombre:"Luis",rol:"operario",email:"",tel:"",acceso:"sin"},
+  ];
+  const documentos=[]; // {id,obra,tarea?,tipo:'imagen'|'pdf',nombre,data,por,fecha}
+
+  return {version:4,rolActual:"dir_general",obraActual:"obra_ej",proyectos,personas,documentos,compromisos:comp,tareas,imputaciones,desviaciones,retrabajos,compras_urgentes,consumo,restante,
     config:{desv:{green:5,warn:10},ppc:{green:85,warn:70},precioHora:35}};
 }
+const ROL_TXT={dir_general:"Dirección general",dir_tecnica:"Dirección técnica",ingeniero:"Ingeniero",encargado:"Encargado",operario:"Operario"};
+const ACC_TXT={activo:"Acceso activo",invitado:"Invitación enviada",sin:"Sin acceso"};
+const ACC_CHIP={activo:"g",invitado:"w",sin:"x"};
+function personasRol(...roles){ return (DB.personas||[]).filter(u=>roles.includes(u.rol)); }
 
 /* precio/hora: de la obra si lo tiene, si no el global de config */
 function rateObra(p){ const r=p&&+p.precio_hora; return (r&&r>0)?r:(+DB.config.precioHora||0); }
@@ -565,6 +608,7 @@ function compsDe(obraId){ return DB.compromisos.filter(c=>c.obra===obraId); }
 
 /* ---- tareas e imputaciones ---- */
 function tareasDe(obraId){ return (DB.tareas||[]).filter(t=>t.obra===obraId); }
+function docsDe(obraId){ return (DB.documentos||[]).filter(d=>d.obra===obraId); }
 function imputDeTarea(tareaId){ return (DB.imputaciones||[]).filter(i=>i.tarea===tareaId); }
 function sumImput(lista, estado){ return lista.filter(i=>!estado||i.estado===estado).reduce((s,i)=>s+(+i.horas||0),0); }
 function imputObra(obraId, estado){ const ids=new Set(tareasDe(obraId).map(t=>t.id)); return (DB.imputaciones||[]).filter(i=>ids.has(i.tarea) && (!estado||i.estado===estado)); }
@@ -665,7 +709,7 @@ function irA(v){
   $$(".vista").forEach(s=>s.classList.toggle("on",s.dataset.vista===v));
   $$("#nav button").forEach(b=>b.classList.toggle("on",b.dataset.goto===v));
   window.scrollTo({top:0,behavior:"smooth"});
-  ({direccion:vistaDireccion,produccion:vistaProduccion,obra:vistaObra,encargado:vistaEncargado,ajustes:vistaAjustes}[v])?.();
+  ({direccion:vistaDireccion,produccion:vistaProduccion,obra:vistaObra,encargado:vistaEncargado,equipo:vistaEquipo,ajustes:vistaAjustes}[v])?.();
 }
 
 function kpiCard(lab,val,icon,cls,sub){
@@ -739,7 +783,7 @@ function tablaObras(){
   const th=COLS.map(c=>{const on=o.col===c.k;return `<th class="${on?'sort':''}" onclick="ordenar('${c.k}')">${c.t}<span class="arr">${on?(o.dir>0?'▲':'▼'):'↕'}</span></th>`;}).join("");
   const body=rows.map(({p,k})=>`
     <tr onclick="abrirObra('${p.id}')">
-      <td class="obra-cell">${esc(p.nombre)}<div class="mini">${esc(p.codigo)}</div></td>
+      <td class="obra-cell"><div style="display:flex;align-items:center;gap:10px">${p.foto?`<img src="${p.foto}" style="width:34px;height:34px;border-radius:8px;object-fit:cover;border:1px solid var(--line);flex:0 0 auto">`:`<span style="width:34px;height:34px;border-radius:8px;background:var(--surface-3);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--muted);flex:0 0 auto">${ICON("building",16)}</span>`}<div>${esc(p.nombre)}<div class="mini">${esc(p.codigo)}</div></div></div></td>
       <td>${esc(p.ingeniero)}</td>
       <td><div class="barwrap"><div class="bar"><i style="width:${k.avance}%"></i></div><b>${Math.round(k.avance)}%</b></div></td>
       <td class="num">${fmtH(k.baseline)}</td>
@@ -765,7 +809,11 @@ function vistaObra(){
   const k=kpiObra(p);
   const sel=DB.proyectos.map(o=>`<option value="${o.id}" ${o.id===p.id?"selected":""}>${esc(o.nombre)} (${esc(o.codigo)})</option>`).join("");
   $('[data-vista="obra"]').innerHTML=`
-    <div class="pagehead"><div><h2>${esc(p.nombre)}</h2><div class="desc">${esc(p.codigo)} · ${esc(p.cliente)} · Ingeniero: ${esc(p.ingeniero)} · Resp.: ${esc(p.responsable)}</div></div>
+    <div class="pagehead">
+      <div style="display:flex;align-items:center;gap:14px;min-width:0">
+        ${fotoObra(p,56)}
+        <div><h2>${esc(p.nombre)}</h2><div class="desc">${esc(p.codigo)} · ${esc(p.cliente)} · Ingeniero: ${esc(p.ingeniero)} · Resp.: ${esc(p.responsable)}</div></div>
+      </div>
       <div class="sep"></div><select class="obra-sel" onchange="abrirObra(this.value)">${sel}</select></div>
     <div class="kpis">
       ${kpiCard("Baseline",fmtH(k.baseline),"target","n",fmtEur(k.eurBaseline))}
@@ -782,6 +830,7 @@ function vistaObra(){
     <div class="subtabs" id="subtabs">
       ${subBtn("tareas", pendientesObra(p.id).length?`Tareas · ${pendientesObra(p.id).length} por validar`:"Tareas")}
       ${subBtn("resumen","Resumen")}${subBtn("plan","Plan maestro")}${subBtn("lookahead","Lookahead 4 sem.")}
+      ${subBtn("docs", docsDe(p.id).length?`Documentos · ${docsDe(p.id).length}`:"Documentos")}
       ${subBtn("objetivos","Objetivos")}${subBtn("desv","Desviaciones")}${subBtn("cert","Certificación")}
     </div>
     <div id="subcont"></div>`;
@@ -792,6 +841,7 @@ function subBtn(id,txt){ return `<button data-sub="${id}" class="${subtabObra===
 function renderSub(p,k){
   const c=$("#subcont");
   if(subtabObra==="tareas"){c.innerHTML=subTareas(p);activarTareas(p);}
+  if(subtabObra==="docs"){c.innerHTML=subDocumentos(p);activarDocs(p);}
   if(subtabObra==="resumen")c.innerHTML=subResumen(p,k);
   if(subtabObra==="plan")c.innerHTML=subPlan(p);
   if(subtabObra==="lookahead"){c.innerHTML=subLookahead(p);activarLookahead(p);}
@@ -903,22 +953,128 @@ function nuevaTarea(obraId){
 }
 function imputarTarea(tid){
   const t=(DB.tareas||[]).find(x=>x.id===tid); if(!t)return;
+  const quienSel = esEncargado() ? "" : (()=>{
+    const gente=personasRol("operario","encargado","ingeniero");
+    const nombres = gente.length? gente.map(u=>u.nombre) : [t.responsable];
+    const opts=nombres.map(n=>`<option value="${esc(n)}" ${n===t.responsable?"selected":""}>${esc(n)}</option>`).join("");
+    return `<div class="field"><label>¿Quién imputa?</label><select id="i_por">${opts}</select></div>`;
+  })();
   modal({titulo:"Imputar horas",cuerpo:`
     <div class="mini" style="margin-bottom:12px">${esc(t.nombre)} · acordado ${t.acordado} h</div>
+    ${quienSel}
     <div class="field"><div class="row">
       <div><label>Fecha</label><input type="date" id="i_fec" value="${ISO(hoy())}"></div>
       <div><label>Horas</label><input type="number" id="i_h" min="0" step="0.5" value="8"></div>
     </div></div>
     <div class="field"><label>Nota (opcional)</label><input id="i_nota" placeholder="Qué se hizo"></div>
-    <div class="hint">${ICON("info",16)}<span>La imputación queda <b>pendiente</b> hasta que el ingeniero la valide.</span></div>`,
+    <div class="hint">${ICON("info",16)}<span>La imputación queda <b>pendiente</b> de validar${esEncargado()?" por el ingeniero":""}.</span></div>`,
     ok:"Imputar",onOk:()=>{
       const h=+$("#i_h").value||0; if(h<=0){toast("Indica las horas","alert");return false;}
-      const por=esEncargado()?"Marcos":(t.responsable||"—");
+      const por=esEncargado()?"Marcos":($("#i_por")?.value||t.responsable||"—");
+      // si el ingeniero imputa sus propias horas, queda validada directamente
+      const auto = !esEncargado();
       DB.imputaciones=DB.imputaciones||[];
-      DB.imputaciones.push({id:uid("i"),tarea:t.id,obra:t.obra,fecha:$("#i_fec").value||ISO(hoy()),horas:h,por,nota:$("#i_nota").value.trim(),estado:"pendiente",validado_por:"",validado_at:""});
-      guardar(); if(esEncargado())vistaEncargado(); else vistaObra(); toast("Horas imputadas · pendiente de validar"); return true;
+      DB.imputaciones.push({id:uid("i"),tarea:t.id,obra:t.obra,fecha:$("#i_fec").value||ISO(hoy()),horas:h,por,nota:$("#i_nota").value.trim(),
+        estado:auto?"validada":"pendiente",validado_por:auto?(P(t.obra)?.ingeniero||"Ingeniero"):"",validado_at:auto?ISO(hoy()):""});
+      guardar(); if(esEncargado())vistaEncargado(); else vistaObra(); toast(auto?"Horas imputadas y validadas":"Horas imputadas · pendiente de validar"); return true;
     }});
 }
+
+/* ---- foto de obra ---- */
+function puedeEditarObra(){ return puedeGestionar()||esDireccion(); }
+function fotoObra(p,size){
+  const s=size||56;
+  const img = p.foto
+    ? `<img src="${p.foto}" style="width:${s}px;height:${s}px;object-fit:cover;border-radius:12px;border:1px solid var(--line);display:block">`
+    : `<div style="width:${s}px;height:${s}px;border-radius:12px;border:1px dashed var(--line-2);background:var(--surface-2);display:flex;align-items:center;justify-content:center;color:var(--muted)">${ICON("building",Math.round(s*0.4))}</div>`;
+  if(!puedeEditarObra()) return `<div style="flex:0 0 auto">${img}</div>`;
+  return `<div style="position:relative;flex:0 0 auto;cursor:pointer" onclick="cambiarFotoObra('${p.id}')" title="Cambiar foto">${img}
+    <span style="position:absolute;right:-5px;bottom:-5px;background:var(--accent);color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.25)">${ICON("camera",12)}</span></div>`;
+}
+function cambiarFotoObra(id){
+  const inp=document.createElement("input"); inp.type="file"; inp.accept="image/*";
+  inp.onchange=()=>{ const f=inp.files[0]; if(!f)return; leerImagen(f,640,data=>{ P(id).foto=data; if(guardarSeguro()){vistaObra();toast("Foto de obra actualizada");} }); };
+  inp.click();
+}
+
+/* ---- documentos y planos (fotos + PDF) ---- */
+const DOC_MAX=4*1024*1024;
+function subDocumentos(p){
+  const ds=docsDe(p.id).sort((a,b)=>a.fecha<b.fecha?1:-1);
+  const grid=ds.map(docCard).join("")||`<div class="empty">${ICON("box",40)}<p>Sin documentos. Sube fotos de obra o PDF de planos.</p></div>`;
+  return `<div class="panel"><div class="cab"><h3>${ICON("box",16)} Documentos y planos</h3><div class="sep"></div>
+      <button class="btn btn-pri btn-sm" id="btnSubirDoc">${ICON("plus",15)} Subir archivo</button></div>
+    <div class="cuerpo"><div class="hint" style="margin-bottom:14px">${ICON("info",16)}<span>Fotos (se redimensionan solas) y PDF de planos o documentos. Pueden subir ingeniero, dirección y encargado.</span></div>
+      <div class="docgrid">${grid}</div></div></div>`;
+}
+function docCard(d){
+  const thumb = d.tipo==="imagen"
+    ? `<img src="${d.data}" onclick="verDoc('${d.id}')" style="width:100%;height:118px;object-fit:cover;cursor:pointer;display:block">`
+    : `<div onclick="verDoc('${d.id}')" style="height:118px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:var(--surface-2);cursor:pointer;color:var(--bad)">${ICON("box",30)}<span style="font-family:var(--mono);font-weight:700;font-size:11px">PDF</span></div>`;
+  return `<div class="doccard">
+    ${thumb}
+    <div class="dc-body"><div class="dc-nom">${esc(d.nombre)}</div><div class="mini">${esc(d.por||"")} · ${fDMA(d.fecha)}</div></div>
+    <div class="dc-acc"><button onclick="verDoc('${d.id}')">${ICON("arrow",13)} Abrir</button>${(puedeEditarObra()||esEncargado())?`<button onclick="borrarDoc('${d.id}')" style="color:var(--bad)">${ICON("x",13)} Borrar</button>`:""}</div>
+  </div>`;
+}
+function activarDocs(p){ const b=$("#btnSubirDoc"); if(b) b.onclick=()=>subirDoc(p.id); }
+function subirDoc(obraId){
+  const inp=document.createElement("input"); inp.type="file"; inp.accept="image/*,application/pdf";
+  inp.onchange=()=>{ const f=inp.files[0]; if(!f)return;
+    if(f.type.startsWith("image/")) leerImagen(f,1200,data=>pushDoc(obraId,"imagen",f.name,data));
+    else if(f.type==="application/pdf"){ if(f.size>DOC_MAX){toast("PDF demasiado grande para la demo (máx 4MB)","alert");return;} leerArchivo(f,data=>pushDoc(obraId,"pdf",f.name,data)); }
+    else toast("Solo imágenes o PDF","alert");
+  };
+  inp.click();
+}
+function pushDoc(obraId,tipo,nombre,data){
+  DB.documentos=DB.documentos||[];
+  const por=esEncargado()?"Marcos":(P(obraId)?.ingeniero||"Ingeniero");
+  DB.documentos.push({id:uid("doc"),obra:obraId,tipo,nombre,data,por,fecha:ISO(hoy())});
+  if(guardarSeguro()){ esEncargado()?vistaEncargado():vistaObra(); toast("Documento subido","box"); }
+}
+function verDoc(id){ const d=(DB.documentos||[]).find(x=>x.id===id); if(!d)return;
+  if(d.tipo==="imagen") modal({titulo:d.nombre,ancho:true,cuerpo:`<img src="${d.data}" style="width:100%;border-radius:10px;display:block">`,ok:"Cerrar",soloOk:true});
+  else { const w=window.open(); if(w) w.document.write(`<title>${esc(d.nombre)}</title><iframe src="${d.data}" style="position:fixed;inset:0;width:100%;height:100%;border:0"></iframe>`); else toast("Permite ventanas emergentes","alert"); }
+}
+function borrarDoc(id){ DB.documentos=(DB.documentos||[]).filter(x=>x.id!==id); guardar(); esEncargado()?vistaEncargado():vistaObra(); toast("Documento borrado"); }
+
+/* ---- EQUIPO: personas y acceso ---- */
+function vistaEquipo(){
+  const ord={dir_general:0,dir_tecnica:1,ingeniero:2,encargado:3,operario:4};
+  const us=(DB.personas||[]).slice().sort((a,b)=>(ord[a.rol]-ord[b.rol])||a.nombre.localeCompare(b.nombre));
+  const rows=us.map(u=>`<tr onclick="editarPersona('${u.id}')">
+      <td class="obra-cell"><div style="display:flex;align-items:center;gap:10px"><span class="avatar">${esc((u.nombre||'?').slice(0,1).toUpperCase())}</span>${esc(u.nombre)}</div></td>
+      <td><span class="chip ${u.rol==='operario'?'x':'n'}">${ROL_TXT[u.rol]||u.rol}</span></td>
+      <td class="mini">${esc(u.email||"—")}</td>
+      <td class="mini">${esc(u.tel||"—")}</td>
+      <td><span class="chip ${ACC_CHIP[u.acceso]}"><span class="dot ${ACC_CHIP[u.acceso]}"></span>${ACC_TXT[u.acceso]}</span></td>
+    </tr>`).join("");
+  $('[data-vista="equipo"]').innerHTML=`
+    <div class="pagehead"><div><h2>Equipo</h2><div class="desc">Operarios, encargados, ingenieros y dirección · acceso a la app</div></div><div class="sep"></div>
+      <button class="btn btn-pri btn-sm" onclick="nuevaPersona()">${ICON("plus",15)} Nueva persona</button></div>
+    <div class="panel"><div class="cuerpo flush"><div class="tabla-wrap"><table class="data">
+      <thead><tr><th>Nombre</th><th>Rol</th><th>Email</th><th>Teléfono</th><th>Acceso</th></tr></thead>
+      <tbody>${rows}</tbody></table></div></div></div>`;
+}
+function nuevaPersona(){ personaModal(null); }
+function editarPersona(id){ personaModal((DB.personas||[]).find(u=>u.id===id)); }
+function personaModal(u){
+  const e=u||{nombre:"",rol:"operario",email:"",tel:"",acceso:"sin"};
+  const rolOpts=Object.entries(ROL_TXT).map(([k,v])=>`<option value="${k}" ${e.rol===k?"selected":""}>${v}</option>`).join("");
+  const accOpts=Object.entries(ACC_TXT).map(([k,v])=>`<option value="${k}" ${e.acceso===k?"selected":""}>${v}</option>`).join("");
+  modal({titulo:u?"Editar persona":"Nueva persona",cuerpo:`
+    <div class="field"><label>Nombre</label><input id="u_nom" value="${esc(e.nombre)}"></div>
+    <div class="field"><div class="row"><div><label>Rol</label><select id="u_rol">${rolOpts}</select></div><div><label>Acceso a la app</label><select id="u_acc">${accOpts}</select></div></div></div>
+    <div class="field"><div class="row"><div><label>Email</label><input id="u_email" value="${esc(e.email||"")}" placeholder="para el acceso"></div><div><label>Teléfono</label><input id="u_tel" value="${esc(e.tel||"")}"></div></div></div>
+    <div class="hint">${ICON("info",16)}<span>El login real (email + contraseña) se activará con la versión multiusuario (Supabase). Aquí defines quién tendrá acceso y con qué rol.</span></div>`,
+    ok:u?"Guardar":"Crear persona", extra:u?`<button class="btn btn-ghost" style="color:var(--bad);margin-right:auto" onclick="borrarPersona('${u.id}')">Eliminar</button>`:"",
+    onOk:()=>{ const nom=$("#u_nom").value.trim(); if(!nom){toast("Pon un nombre","alert");return false;}
+      const data={nombre:nom,rol:$("#u_rol").value,acceso:$("#u_acc").value,email:$("#u_email").value.trim(),tel:$("#u_tel").value.trim()};
+      if(u) Object.assign(u,data); else { DB.personas=DB.personas||[]; DB.personas.push({id:uid("u"),...data}); }
+      guardar(); vistaEquipo(); toast(u?"Persona actualizada":"Persona creada"); return true; }});
+}
+function borrarPersona(id){ DB.personas=(DB.personas||[]).filter(u=>u.id!==id); guardar(); cerrarModal(); vistaEquipo(); toast("Persona eliminada"); }
 
 function subResumen(p,k){
   const max=Math.max(...p.baselines.map(b=>b.horas),1);
@@ -1114,8 +1270,9 @@ function mCardTarea(t){
       <div class="mini" style="font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin:4px 0 4px">Subtareas</div>${subs}
       <div class="mini" style="font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin:12px 0 2px">Mis imputaciones</div>${imps}
     </div>
-    <div class="acc" style="grid-template-columns:1fr">
-      <button class="fin" onclick="imputarTarea('${t.id}')">${ICON("clock",20)}Imputar horas de hoy</button>
+    <div class="acc">
+      <button class="fin" onclick="imputarTarea('${t.id}')">${ICON("clock",20)}Imputar horas</button>
+      <button onclick="subirDoc('${t.obra}')">${ICON("camera",20)}Subir foto</button>
     </div>
   </div>`;
 }
@@ -1240,10 +1397,10 @@ function vistaAjustes(){
 function guardarConfig(){ DB.config.precioHora=Math.max(0,+$("#ph").value||0);DB.config.desv.green=+$("#dg").value||5;DB.config.desv.warn=+$("#dw").value||10;DB.config.ppc.green=+$("#pg").value||85;DB.config.ppc.warn=+$("#pw").value||70;guardar();toast("Ajustes guardados"); }
 
 /* ---- Modal ---- */
-function modal({titulo,cuerpo,ok="Aceptar",onOk,after,soloOk,ancho}){
+function modal({titulo,cuerpo,ok="Aceptar",onOk,after,soloOk,ancho,extra}){
   const m=$("#modal"); m.style.maxWidth=ancho?"640px":"520px";
   m.innerHTML=`<div class="mh"><h3>${esc(titulo)}</h3><div class="sep"></div><button class="x" onclick="cerrarModal()" aria-label="Cerrar">${ICON("x",17)}</button></div>
-    <div class="mb">${cuerpo}</div><div class="mf">${soloOk?"":`<button class="btn btn-ghost" onclick="cerrarModal()">Cancelar</button>`}<button class="btn btn-pri" id="mOk">${esc(ok)}</button></div>`;
+    <div class="mb">${cuerpo}</div><div class="mf">${extra||""}${soloOk?"":`<button class="btn btn-ghost" onclick="cerrarModal()">Cancelar</button>`}<button class="btn btn-pri" id="mOk">${esc(ok)}</button></div>`;
   $("#ov").classList.add("on");
   $("#mOk").onclick=()=>{ if(!onOk){cerrarModal();return;} const r=onOk(); if(r!==false)cerrarModal(); };
   if(after)after();
@@ -1259,7 +1416,8 @@ $("#btnAjustes").addEventListener("click",()=>{ if(ROLES[DB.rolActual].vistas.in
 if(!cargar()){ DB=semilla(); guardar(); }
 render();
 Object.assign(window,{irA,abrirObra,ordenar,abrirObjetivo,nuevoObjetivo,nuevaDesviacion,nuevaObra,editarRestante,editarPrecio,editarCert,guardarConfig,mAvance,mBloqueo,mMaterial,mTerminar,cerrarModal,
-  nuevaTarea,imputarTarea,validarImput,toggleSubtarea});
+  nuevaTarea,imputarTarea,validarImput,toggleSubtarea,
+  cambiarFotoObra,subirDoc,verDoc,borrarDoc,nuevaPersona,editarPersona,borrarPersona});
 </script>
 </body>
 </html>

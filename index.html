@@ -24,8 +24,10 @@
   svg.ic{vertical-align:middle;flex:0 0 auto;}
 
   .top{display:flex;align-items:center;gap:12px;padding:16px 20px;background:var(--ink);color:#fff;padding-top:max(16px,env(safe-area-inset-top));}
-  .brandlogo{display:inline-flex;align-items:center;background:#fff;border-radius:10px;padding:6px 11px;}
-  .brandlogo img{height:26px;width:auto;display:block;}
+  .brandlogo{display:inline-flex;align-items:center;gap:10px;background:#fff;border-radius:10px;padding:6px 11px;}
+  .brandlogo img{height:28px;width:auto;display:block;}
+  .brandlogo .div{width:1px;height:24px;background:var(--line);}
+  .brandlogo.nocl .cl,.brandlogo.nocl .div{display:none;}
   .top .n{font-weight:700;font-size:17px;letter-spacing:-.2px;}
   .top .s{font-size:12px;color:#94a3b8;margin-top:1px;}
 
@@ -51,7 +53,11 @@
 </head>
 <body>
   <header class="top">
-    <span class="brandlogo"><img src="/logotipo.jpg" alt="Frío 7" /></span>
+    <span class="brandlogo nocl">
+      <img class="cl" src="/logo-cl.png" alt="CL Frío" onerror="this.closest('.brandlogo').classList.add('nocl')" onload="this.closest('.brandlogo').classList.remove('nocl')" />
+      <span class="div"></span>
+      <img src="/logotipo.jpg" alt="Frío 7" />
+    </span>
     <div><div class="n">Frío 7</div><div class="s">Herramientas</div></div>
   </header>
 
