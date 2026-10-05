@@ -436,7 +436,7 @@ const fcode = f => `<span class="fcode">${f.cod}</span>`;
 /* ---------- roles ---------- */
 const ROLES = {
   dir_general: {nom:"Dirección general (Carlos)", vistas:["direccion","produccion","obra","equipo","ajustes"]},
-  dir_tecnica: {nom:"Dirección técnica", vistas:["direccion","produccion","obra","equipo","ajustes"]},
+  dir_tecnica: {nom:"Dirección técnica (Aridany)", vistas:["direccion","produccion","obra","equipo","ajustes"]},
   ingeniero:   {nom:"Ingeniero de obra", vistas:["produccion","obra","equipo","ajustes"]},
   encargado:   {nom:"Encargado / Oficial (Marcos)", vistas:["encargado"]},
 };
@@ -457,7 +457,7 @@ const puedeGestionar = ()=> DB.rolActual==="ingeniero";     // crear tareas / va
 /* ===================================================================
    MODELO DE DATOS  (calcado del esquema Supabase, sección 29)
    =================================================================== */
-const LS_KEY = "FRIO7_PROD_V4";
+const LS_KEY = "FRIO7_PROD_V5";
 let DB = null;
 function guardar(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(DB)); }catch(e){} }
 function cargar(){ try{ const raw=localStorage.getItem(LS_KEY); if(raw){ DB=JSON.parse(raw); return true; } }catch(e){} return false; }
@@ -471,7 +471,7 @@ function semilla(){
 
   const proyectos = [
     {id:"obra_ej", codigo:"EJ-24", nombre:"Espacio Joven", cliente:"Ayuntamiento",
-      ingeniero:"Laura G.", responsable:"Ari", fecha_inicio:semStart(-3), fecha_fin_contractual:semEnd(8),
+      ingeniero:"Raymundo Sánchez", responsable:"Aridany Hernández", fecha_inicio:semStart(-3), fecha_fin_contractual:semEnd(8),
       baseline_horas:3000, ...audit,
       baselines:[{familia:"refrigerante",horas:850},{familia:"conductos",horas:420},{familia:"electricidad",horas:620},{familia:"falsostechos",horas:400},{familia:"puestamarcha",horas:180},{familia:"otros",horas:530}],
       plan:[
@@ -483,7 +483,7 @@ function semilla(){
         {id:uid("ph"),familia:"puestamarcha",ini:semStart(7),fin:semStart(8),estado:"pend",avance:0}],
       certificacion:{objetivo_mes:120000,prevista:104000}},
     {id:"obra_cc", codigo:"CC-23", nombre:"Centro Comercial Norte", cliente:"Inmobiliaria Sur",
-      ingeniero:"Javier M.", responsable:"Ari", fecha_inicio:semStart(-6), fecha_fin_contractual:semEnd(4),
+      ingeniero:"Javier González", responsable:"Aridany Hernández", fecha_inicio:semStart(-6), fecha_fin_contractual:semEnd(4),
       baseline_horas:5400, ...audit,
       baselines:[{familia:"refrigerante",horas:1600},{familia:"conductos",horas:1100},{familia:"salamaquinas",horas:900},{familia:"electricidad",horas:700},{familia:"control",horas:500},{familia:"otros",horas:600}],
       plan:[
@@ -493,7 +493,7 @@ function semilla(){
         {id:uid("ph"),familia:"control",ini:semStart(2),fin:semStart(4),estado:"pend",avance:0}],
       certificacion:{objetivo_mes:210000,prevista:225000}},
     {id:"obra_ho", codigo:"HO-07", nombre:"Hospital Comarcal — Ala B", cliente:"SAS",
-      ingeniero:"Laura G.", responsable:"Ari", fecha_inicio:semStart(-2), fecha_fin_contractual:semEnd(12),
+      ingeniero:"Oswaldo Espinosa", responsable:"Aridany Hernández", fecha_inicio:semStart(-2), fecha_fin_contractual:semEnd(12),
       baseline_horas:4200, ...audit,
       baselines:[{familia:"refrigerante",horas:1200},{familia:"conductos",horas:900},{familia:"hidraulica",horas:800},{familia:"electricidad",horas:600},{familia:"difusion",horas:300},{familia:"otros",horas:400}],
       plan:[
@@ -560,39 +560,76 @@ function semilla(){
      subtareas:[{id:uid("st"),nom:"Soportación",hecha:true},{id:uid("st"),nom:"Tendido de línea",hecha:false},{id:uid("st"),nom:"Aislamiento",hecha:false},{id:uid("st"),nom:"Prueba de estanqueidad",hecha:false}],
      created_by:"ingeniero",created_at:ISO(t)},
     {id:"t_ej3", obra:"obra_ej", familia:"conductos", nombre:"Montaje conductos pasillo central",
-     responsable:"Pedro", fecha_creacion:semStart(-1), presupuestado:48, acordado:52, estado:"abierta",
+     responsable:"Antonio Pita Sanchez", fecha_creacion:semStart(-1), presupuestado:48, acordado:52, estado:"abierta",
      subtareas:[{id:uid("st"),nom:"Montaje de conducto",hecha:false},{id:uid("st"),nom:"Sellado de uniones",hecha:false}],
      created_by:"ingeniero",created_at:ISO(t)},
   ];
   // ---- IMPUTACIONES diarias (encargado) con validación del ingeniero ----
   const dia = n => { const d=new Date(lunes); d.setDate(lunes.getDate()+n); return ISO(d); };
   const imputaciones = [
-    {id:uid("i"),tarea:"t_ej1",obra:"obra_ej",fecha:dia(0),horas:8,por:"Marcos",nota:"Replanteo + inicio bandeja",estado:"validada",validado_por:"Laura G.",validado_at:ISO(t)},
-    {id:uid("i"),tarea:"t_ej1",obra:"obra_ej",fecha:dia(1),horas:8,por:"Marcos",nota:"Bandeja Zona A",estado:"validada",validado_por:"Laura G.",validado_at:ISO(t)},
+    {id:uid("i"),tarea:"t_ej1",obra:"obra_ej",fecha:dia(0),horas:8,por:"Marcos",nota:"Replanteo + inicio bandeja",estado:"validada",validado_por:"Raymundo Sánchez",validado_at:ISO(t)},
+    {id:uid("i"),tarea:"t_ej1",obra:"obra_ej",fecha:dia(1),horas:8,por:"Marcos",nota:"Bandeja Zona A",estado:"validada",validado_por:"Raymundo Sánchez",validado_at:ISO(t)},
     {id:uid("i"),tarea:"t_ej1",obra:"obra_ej",fecha:dia(2),horas:9,por:"Marcos",nota:"Tendido cable (desvío: falta material)",estado:"pendiente",validado_por:"",validado_at:""},
-    {id:uid("i"),tarea:"t_ej2",obra:"obra_ej",fecha:dia(1),horas:8,por:"Marcos",nota:"Soportación P1",estado:"validada",validado_por:"Laura G.",validado_at:ISO(t)},
+    {id:uid("i"),tarea:"t_ej2",obra:"obra_ej",fecha:dia(1),horas:8,por:"Marcos",nota:"Soportación P1",estado:"validada",validado_por:"Raymundo Sánchez",validado_at:ISO(t)},
     {id:uid("i"),tarea:"t_ej2",obra:"obra_ej",fecha:dia(2),horas:8,por:"Marcos",nota:"Tendido línea",estado:"pendiente",validado_por:"",validado_at:""},
-    {id:uid("i"),tarea:"t_ej3",obra:"obra_ej",fecha:dia(0),horas:6,por:"Pedro",nota:"Montaje conducto",estado:"rechazada",validado_por:"Laura G.",validado_at:ISO(t)},
+    {id:uid("i"),tarea:"t_ej3",obra:"obra_ej",fecha:dia(0),horas:6,por:"Antonio Pita Sanchez",nota:"Montaje conducto",estado:"rechazada",validado_por:"Raymundo Sánchez",validado_at:ISO(t)},
   ];
 
   proyectos.forEach(p=>{ if(!("foto" in p)) p.foto=""; });
-  // ---- PERSONAS (operarios, encargados, ingenieros, dirección) y su acceso ----
+  // ---- PERSONAS (dirección, ingeniería, encargados, operarios) y su acceso ----
+  const U = (nombre,rol,extra={}) => ({id:uid("u"),nombre,rol,empresa:"CL FRÍO",oficio:"",rango:"",estado:"activo",cargo:"",email:"",tel:"",acceso:"sin",...extra});
+  const op = (nombre,oficio,rango,empresa="CL FRÍO",estado="activo") => U(nombre,"operario",{oficio,rango,empresa,estado});
   const personas=[
-    {id:uid("u"),nombre:"Carlos",rol:"dir_general",email:"carlos@clfrio.es",tel:"",acceso:"activo"},
-    {id:uid("u"),nombre:"Ari",rol:"dir_tecnica",email:"ari@clfrio.es",tel:"",acceso:"activo"},
-    {id:uid("u"),nombre:"Laura G.",rol:"ingeniero",email:"laura@clfrio.es",tel:"",acceso:"activo"},
-    {id:uid("u"),nombre:"Javier M.",rol:"ingeniero",email:"javier@clfrio.es",tel:"",acceso:"activo"},
-    {id:uid("u"),nombre:"Marcos",rol:"encargado",email:"marcos@clfrio.es",tel:"600 11 22 33",acceso:"activo"},
-    {id:uid("u"),nombre:"Nacho",rol:"encargado",email:"",tel:"",acceso:"invitado"},
-    {id:uid("u"),nombre:"Pedro",rol:"operario",email:"",tel:"",acceso:"sin"},
-    {id:uid("u"),nombre:"Luis",rol:"operario",email:"",tel:"",acceso:"sin"},
+    // Dirección e ingeniería
+    U("Carlos","dir_general",{cargo:"Dirección general",email:"carlos@clfrio.es",acceso:"activo"}),
+    U("Aridany Hernández","dir_tecnica",{cargo:"Director del departamento",email:"aridany@clfrio.es",acceso:"activo"}),
+    U("Ángel Calcines","coordinador",{cargo:"Coordinador",email:"angel@clfrio.es",acceso:"activo"}),
+    U("Raymundo Sánchez","ingeniero",{email:"raymundo@clfrio.es",acceso:"activo"}),
+    U("Javier González","ingeniero",{email:"javier@clfrio.es",acceso:"activo"}),
+    U("Oswaldo Espinosa","ingeniero",{email:"oswaldo@clfrio.es",acceso:"activo"}),
+    U("Néstor Rodríguez","ingeniero",{email:"nestor@clfrio.es",acceso:"activo"}),
+    // Encargado piloto (demo)
+    U("Marcos","encargado",{empresa:"Frío 7",email:"marcos@clfrio.es",tel:"600 11 22 33",acceso:"activo"}),
+    // Operarios CL FRÍO
+    op("Juan Domingo Quevedo Romero","Frigorista","Oficial"),
+    op("Guillermo Cardenes Valcarcel","Frigorista","Oficial"),
+    op("Asbel Noel Ruiz Amador","Frigorista","Oficial"),
+    op("Antonio Pita Sanchez","Frigorista","Oficial"),
+    op("Alejandro Diaz Hernandez","Frigorista","Oficial"),
+    op("Gunido Djibril","Frigorista","Oficial"),
+    op("Carmel Di Martino De La Cruz","Fontanero","Oficial"),
+    op("Joel Sebasti Falcon Gonzalez","Frigorista","Oficial"),
+    op("Marcos Molina Artiles","Electricista","Oficial"),
+    op("Juan Felipe Perez Medina","Frigorista","Oficial"),
+    op("Raul Ivan Deniz Montesdeoca","Otro","Oficial"),
+    op("Gustavo Man Angulo Rodriguez","Electricista","Oficial"),
+    op("Josue Diaz Talavera","Fontanero","Oficial"),
+    op("Alexander Ramirez Gonzalez","Frigorista","Oficial"),
+    op("Xercherico Ramirez Artiles","Frigorista","Oficial"),
+    op("Rafael Joel Abrante Llovel","Otro","Oficial"),
+    op("David Santana Alvarado","Frigorista","Oficial"),
+    op("Ayose Falcon Gonzalez","Frigorista","Oficial"),
+    op("Alberto Sosa Monserrat","Electricista","Oficial"),
+    op("Jose Emilio Santana Peña","Frigorista","Oficial"),
+    op("Albert David Gonzalez Vargas","Frigorista","Ayudante"),
+    op("Lionel Ramos Gil","Frigorista","Oficial"),
+    op("Victor Jose Lopez Nuñez","Frigorista","Oficial"),
+    op("Oscar Acosta Huete","Frigorista","Oficial"),
+    op("Andres Avelino Arango Uribe","Frigorista","Oficial"),
+    op("Yamid Vargas Otalvaro","Frigorista","Oficial"),
+    // Operarios Frío 7
+    op("Nahum Calcines","Frigorista","","Frío 7","activo"),
+    op("Benji","Frigorista","","Frío 7","baja"),
+    op("Gomero","Frigorista","","Frío 7","activo"),
+    op("Javier Calcines","Frigorista","","Frío 7","activo"),
+    op("Julio","Frigorista","","Frío 7","baja"),
   ];
   const documentos=[]; // {id,obra,tarea?,tipo:'imagen'|'pdf',nombre,data,por,fecha}
 
-  return {version:4,rolActual:"dir_general",obraActual:"obra_ej",proyectos,personas,documentos,compromisos:comp,tareas,imputaciones,desviaciones,retrabajos,compras_urgentes,consumo,restante,
+  return {version:5,rolActual:"dir_general",obraActual:"obra_ej",proyectos,personas,documentos,compromisos:comp,tareas,imputaciones,desviaciones,retrabajos,compras_urgentes,consumo,restante,
     config:{desv:{green:5,warn:10},ppc:{green:85,warn:70},precioHora:35}};
 }
-const ROL_TXT={dir_general:"Dirección general",dir_tecnica:"Dirección técnica",ingeniero:"Ingeniero",encargado:"Encargado",operario:"Operario"};
+const ROL_TXT={dir_general:"Dirección general",dir_tecnica:"Dirección técnica",coordinador:"Coordinador",ingeniero:"Ingeniero",encargado:"Encargado",operario:"Operario"};
 const ACC_TXT={activo:"Acceso activo",invitado:"Invitación enviada",sin:"Sin acceso"};
 const ACC_CHIP={activo:"g",invitado:"w",sin:"x"};
 function personasRol(...roles){ return (DB.personas||[]).filter(u=>roles.includes(u.rol)); }
@@ -1041,37 +1078,44 @@ function borrarDoc(id){ DB.documentos=(DB.documentos||[]).filter(x=>x.id!==id); 
 
 /* ---- EQUIPO: personas y acceso ---- */
 function vistaEquipo(){
-  const ord={dir_general:0,dir_tecnica:1,ingeniero:2,encargado:3,operario:4};
-  const us=(DB.personas||[]).slice().sort((a,b)=>(ord[a.rol]-ord[b.rol])||a.nombre.localeCompare(b.nombre));
-  const rows=us.map(u=>`<tr onclick="editarPersona('${u.id}')">
-      <td class="obra-cell"><div style="display:flex;align-items:center;gap:10px"><span class="avatar">${esc((u.nombre||'?').slice(0,1).toUpperCase())}</span>${esc(u.nombre)}</div></td>
+  const ord={dir_general:0,dir_tecnica:1,coordinador:2,ingeniero:3,encargado:4,operario:5};
+  const us=(DB.personas||[]).slice().sort((a,b)=>((ord[a.rol]??9)-(ord[b.rol]??9))||a.nombre.localeCompare(b.nombre));
+  const total=us.length, activos=us.filter(u=>u.estado!=="baja").length;
+  const rows=us.map(u=>`<tr onclick="editarPersona('${u.id}')" ${u.estado==="baja"?'style="opacity:.55"':''}>
+      <td class="obra-cell"><div style="display:flex;align-items:center;gap:10px"><span class="avatar">${esc((u.nombre||'?').slice(0,1).toUpperCase())}</span><div>${esc(u.nombre)}${u.cargo?`<div class="mini" style="font-weight:600">${esc(u.cargo)}</div>`:""}${u.estado==="baja"?`<div class="mini" style="color:var(--bad);font-weight:700">De baja</div>`:""}</div></div></td>
       <td><span class="chip ${u.rol==='operario'?'x':'n'}">${ROL_TXT[u.rol]||u.rol}</span></td>
+      <td><span class="chip ${u.empresa==='Frío 7'?'n':'x'}">${esc(u.empresa||"—")}</span></td>
+      <td class="mini">${esc(u.oficio||"—")}${u.rango?` · ${esc(u.rango)}`:""}</td>
       <td class="mini">${esc(u.email||"—")}</td>
-      <td class="mini">${esc(u.tel||"—")}</td>
       <td><span class="chip ${ACC_CHIP[u.acceso]}"><span class="dot ${ACC_CHIP[u.acceso]}"></span>${ACC_TXT[u.acceso]}</span></td>
     </tr>`).join("");
   $('[data-vista="equipo"]').innerHTML=`
-    <div class="pagehead"><div><h2>Equipo</h2><div class="desc">Operarios, encargados, ingenieros y dirección · acceso a la app</div></div><div class="sep"></div>
+    <div class="pagehead"><div><h2>Equipo</h2><div class="desc">${total} personas · ${activos} activas · dirección, ingeniería, encargados y operarios</div></div><div class="sep"></div>
       <button class="btn btn-pri btn-sm" onclick="nuevaPersona()">${ICON("plus",15)} Nueva persona</button></div>
     <div class="panel"><div class="cuerpo flush"><div class="tabla-wrap"><table class="data">
-      <thead><tr><th>Nombre</th><th>Rol</th><th>Email</th><th>Teléfono</th><th>Acceso</th></tr></thead>
+      <thead><tr><th>Nombre</th><th>Rol</th><th>Empresa</th><th>Oficio</th><th>Email</th><th>Acceso</th></tr></thead>
       <tbody>${rows}</tbody></table></div></div></div>`;
 }
 function nuevaPersona(){ personaModal(null); }
 function editarPersona(id){ personaModal((DB.personas||[]).find(u=>u.id===id)); }
 function personaModal(u){
-  const e=u||{nombre:"",rol:"operario",email:"",tel:"",acceso:"sin"};
+  const e=u||{nombre:"",rol:"operario",empresa:"CL FRÍO",oficio:"",rango:"",estado:"activo",cargo:"",email:"",tel:"",acceso:"sin"};
   const rolOpts=Object.entries(ROL_TXT).map(([k,v])=>`<option value="${k}" ${e.rol===k?"selected":""}>${v}</option>`).join("");
   const accOpts=Object.entries(ACC_TXT).map(([k,v])=>`<option value="${k}" ${e.acceso===k?"selected":""}>${v}</option>`).join("");
+  const empOpts=["CL FRÍO","Frío 7"].map(x=>`<option ${e.empresa===x?"selected":""}>${x}</option>`).join("");
   modal({titulo:u?"Editar persona":"Nueva persona",cuerpo:`
     <div class="field"><label>Nombre</label><input id="u_nom" value="${esc(e.nombre)}"></div>
-    <div class="field"><div class="row"><div><label>Rol</label><select id="u_rol">${rolOpts}</select></div><div><label>Acceso a la app</label><select id="u_acc">${accOpts}</select></div></div></div>
+    <div class="field"><div class="row"><div><label>Rol</label><select id="u_rol">${rolOpts}</select></div><div><label>Empresa</label><select id="u_emp">${empOpts}</select></div></div></div>
+    <div class="field"><div class="row"><div><label>Oficio</label><input id="u_ofi" value="${esc(e.oficio||"")}" placeholder="Frigorista, Electricista…"></div><div><label>Rango</label><input id="u_rango" value="${esc(e.rango||"")}" placeholder="Oficial, Ayudante…"></div></div></div>
+    <div class="field"><div class="row"><div><label>Acceso a la app</label><select id="u_acc">${accOpts}</select></div><div><label>Estado</label><div class="seg" id="u_est"><button data-v="activo" class="${e.estado!=='baja'?'on':''}">Activo</button><button data-v="baja" class="no ${e.estado==='baja'?'on':''}">De baja</button></div></div></div></div>
     <div class="field"><div class="row"><div><label>Email</label><input id="u_email" value="${esc(e.email||"")}" placeholder="para el acceso"></div><div><label>Teléfono</label><input id="u_tel" value="${esc(e.tel||"")}"></div></div></div>
     <div class="hint">${ICON("info",16)}<span>El login real (email + contraseña) se activará con la versión multiusuario (Supabase). Aquí defines quién tendrá acceso y con qué rol.</span></div>`,
     ok:u?"Guardar":"Crear persona", extra:u?`<button class="btn btn-ghost" style="color:var(--bad);margin-right:auto" onclick="borrarPersona('${u.id}')">Eliminar</button>`:"",
+    after:()=>segUnico("u_est"),
     onOk:()=>{ const nom=$("#u_nom").value.trim(); if(!nom){toast("Pon un nombre","alert");return false;}
-      const data={nombre:nom,rol:$("#u_rol").value,acceso:$("#u_acc").value,email:$("#u_email").value.trim(),tel:$("#u_tel").value.trim()};
-      if(u) Object.assign(u,data); else { DB.personas=DB.personas||[]; DB.personas.push({id:uid("u"),...data}); }
+      const data={nombre:nom,rol:$("#u_rol").value,empresa:$("#u_emp").value,oficio:$("#u_ofi").value.trim(),rango:$("#u_rango").value.trim(),
+        estado:($("#u_est button.on")?.dataset.v||"activo"),acceso:$("#u_acc").value,email:$("#u_email").value.trim(),tel:$("#u_tel").value.trim()};
+      if(u) Object.assign(u,data); else { DB.personas=DB.personas||[]; DB.personas.push({id:uid("u"),cargo:"",...data}); }
       guardar(); vistaEquipo(); toast(u?"Persona actualizada":"Persona creada"); return true; }});
 }
 function borrarPersona(id){ DB.personas=(DB.personas||[]).filter(u=>u.id!==id); guardar(); cerrarModal(); vistaEquipo(); toast("Persona eliminada"); }
