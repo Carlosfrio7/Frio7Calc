@@ -170,6 +170,9 @@
 
   /* código de familia (reemplaza emoji) */
   .fcode{font-family:var(--mono);font-weight:600;font-size:10.5px;letter-spacing:.5px;color:var(--text-2);background:var(--surface-3);border:1px solid var(--line);border-radius:4px;padding:2px 5px;flex:0 0 auto;}
+  .stbox{width:20px;height:20px;border-radius:5px;border:1.5px solid var(--line-2);background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;flex:0 0 auto;padding:0;}
+  .stbox.on{background:var(--ok);border-color:var(--ok);}
+  .stbox[disabled]{cursor:default;opacity:.9;}
 
   /* barra de avance */
   .bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;min-width:64px;flex:1;}
@@ -408,8 +411,8 @@ const fcode = f => `<span class="fcode">${f.cod}</span>`;
 
 /* ---------- roles ---------- */
 const ROLES = {
-  direccion:   {nom:"Dirección (Carlos)", vistas:["direccion","produccion","obra","ajustes"]},
-  produccion:  {nom:"Resp. Producción (Ari)", vistas:["produccion","direccion","obra","ajustes"]},
+  dir_general: {nom:"Dirección general (Carlos)", vistas:["direccion","produccion","obra","ajustes"]},
+  dir_tecnica: {nom:"Dirección técnica", vistas:["direccion","produccion","obra","ajustes"]},
   ingeniero:   {nom:"Ingeniero de obra", vistas:["produccion","obra","ajustes"]},
   encargado:   {nom:"Encargado / Oficial (Marcos)", vistas:["encargado"]},
 };
@@ -420,11 +423,16 @@ const NAV_META = {
   encargado:  {et:"Mi trabajo", ic:"smartphone"},
   ajustes:    {et:"Ajustes",    ic:"settings"},
 };
+/* permisos */
+const esEncargado    = ()=> DB.rolActual==="encargado";
+const esDireccion    = ()=> DB.rolActual==="dir_general" || DB.rolActual==="dir_tecnica";
+const verPresu       = ()=> !esEncargado();                 // presupuestado oculto al encargado
+const puedeGestionar = ()=> DB.rolActual==="ingeniero";     // crear tareas / validar imputaciones
 
 /* ===================================================================
    MODELO DE DATOS  (calcado del esquema Supabase, sección 29)
    =================================================================== */
-const LS_KEY = "FRIO7_PROD_V2";
+const LS_KEY = "FRIO7_PROD_V3";
 let DB = null;
 function guardar(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(DB)); }catch(e){} }
 function cargar(){ try{ const raw=localStorage.getItem(LS_KEY); if(raw){ DB=JSON.parse(raw); return true; } }catch(e){} return false; }
@@ -516,7 +524,33 @@ function semilla(){
   const retrabajos = [{id:uid("rw"),obra:"obra_cc",familia:"refrigerante",responsable:"Nacho",desc:"Fuga en unión soldada P2",horas:12,tipo:"fuga",origen:"interno",fecha:semStart(0)}];
   const compras_urgentes = [{id:uid("cu"),obra:"obra_ej",trabajador:"Marcos",prov:"Elecmat",motivo:"Falta de bridas",desc:"Bridas y tornillería",importe:48,tiempo_perdido:1.5,fecha:semStart(0)}];
 
-  return {version:2,rolActual:"direccion",obraActual:"obra_ej",proyectos,compromisos:comp,desviaciones,retrabajos,compras_urgentes,consumo,restante,
+  // ---- TAREAS (ingeniero → encargado) con subtareas ----
+  const tareas = [
+    {id:"t_ej1", obra:"obra_ej", familia:"electricidad", nombre:"Canalizaciones y alimentación Zona A",
+     responsable:"Marcos", fecha_creacion:semStart(0), presupuestado:70, acordado:64, estado:"abierta",
+     subtareas:[{id:uid("st"),nom:"Replanteo de trazados",hecha:true},{id:uid("st"),nom:"Montaje de bandeja",hecha:true},{id:uid("st"),nom:"Tendido de cable",hecha:false},{id:uid("st"),nom:"Conexionado y comprobaciones",hecha:false}],
+     created_by:"ingeniero",created_at:ISO(t)},
+    {id:"t_ej2", obra:"obra_ej", familia:"refrigerante", nombre:"Tendido tubería frigorífica planta 1",
+     responsable:"Marcos", fecha_creacion:semStart(0), presupuestado:85, acordado:80, estado:"abierta",
+     subtareas:[{id:uid("st"),nom:"Soportación",hecha:true},{id:uid("st"),nom:"Tendido de línea",hecha:false},{id:uid("st"),nom:"Aislamiento",hecha:false},{id:uid("st"),nom:"Prueba de estanqueidad",hecha:false}],
+     created_by:"ingeniero",created_at:ISO(t)},
+    {id:"t_ej3", obra:"obra_ej", familia:"conductos", nombre:"Montaje conductos pasillo central",
+     responsable:"Pedro", fecha_creacion:semStart(-1), presupuestado:48, acordado:52, estado:"abierta",
+     subtareas:[{id:uid("st"),nom:"Montaje de conducto",hecha:false},{id:uid("st"),nom:"Sellado de uniones",hecha:false}],
+     created_by:"ingeniero",created_at:ISO(t)},
+  ];
+  // ---- IMPUTACIONES diarias (encargado) con validación del ingeniero ----
+  const dia = n => { const d=new Date(lunes); d.setDate(lunes.getDate()+n); return ISO(d); };
+  const imputaciones = [
+    {id:uid("i"),tarea:"t_ej1",obra:"obra_ej",fecha:dia(0),horas:8,por:"Marcos",nota:"Replanteo + inicio bandeja",estado:"validada",validado_por:"Laura G.",validado_at:ISO(t)},
+    {id:uid("i"),tarea:"t_ej1",obra:"obra_ej",fecha:dia(1),horas:8,por:"Marcos",nota:"Bandeja Zona A",estado:"validada",validado_por:"Laura G.",validado_at:ISO(t)},
+    {id:uid("i"),tarea:"t_ej1",obra:"obra_ej",fecha:dia(2),horas:9,por:"Marcos",nota:"Tendido cable (desvío: falta material)",estado:"pendiente",validado_por:"",validado_at:""},
+    {id:uid("i"),tarea:"t_ej2",obra:"obra_ej",fecha:dia(1),horas:8,por:"Marcos",nota:"Soportación P1",estado:"validada",validado_por:"Laura G.",validado_at:ISO(t)},
+    {id:uid("i"),tarea:"t_ej2",obra:"obra_ej",fecha:dia(2),horas:8,por:"Marcos",nota:"Tendido línea",estado:"pendiente",validado_por:"",validado_at:""},
+    {id:uid("i"),tarea:"t_ej3",obra:"obra_ej",fecha:dia(0),horas:6,por:"Pedro",nota:"Montaje conducto",estado:"rechazada",validado_por:"Laura G.",validado_at:ISO(t)},
+  ];
+
+  return {version:3,rolActual:"dir_general",obraActual:"obra_ej",proyectos,compromisos:comp,tareas,imputaciones,desviaciones,retrabajos,compras_urgentes,consumo,restante,
     config:{desv:{green:5,warn:10},ppc:{green:85,warn:70},precioHora:35}};
 }
 
@@ -529,8 +563,16 @@ function rateObra(p){ const r=p&&+p.precio_hora; return (r&&r>0)?r:(+DB.config.p
 function P(id){ return DB.proyectos.find(p=>p.id===id); }
 function compsDe(obraId){ return DB.compromisos.filter(c=>c.obra===obraId); }
 
+/* ---- tareas e imputaciones ---- */
+function tareasDe(obraId){ return (DB.tareas||[]).filter(t=>t.obra===obraId); }
+function imputDeTarea(tareaId){ return (DB.imputaciones||[]).filter(i=>i.tarea===tareaId); }
+function sumImput(lista, estado){ return lista.filter(i=>!estado||i.estado===estado).reduce((s,i)=>s+(+i.horas||0),0); }
+function imputObra(obraId, estado){ const ids=new Set(tareasDe(obraId).map(t=>t.id)); return (DB.imputaciones||[]).filter(i=>ids.has(i.tarea) && (!estado||i.estado===estado)); }
+function horasTarea(t){ const l=imputDeTarea(t.id); return {val:sumImput(l,"validada"), pend:sumImput(l,"pendiente"), rech:sumImput(l,"rechazada")}; }
+function pendientesObra(obraId){ return imputObra(obraId,"pendiente"); }
+
 function kpiObra(p){
-  const baseline=p.baseline_horas, actual=DB.consumo[p.id]||0, rem=DB.restante[p.id]||0;
+  const baseline=p.baseline_horas, actual=(DB.consumo[p.id]||0)+sumImput(imputObra(p.id,"validada")), rem=DB.restante[p.id]||0;
   const eac=actual+rem, vac=baseline-eac, desvH=eac-baseline, desvPct=baseline?(desvH/baseline*100):0;
   const avance=baseline?Math.min(100,actual/eac*100):0;
   const comps=compsDe(p.id);
@@ -604,7 +646,7 @@ const R2TXT={ready:"READY",warning:"WARNING",blocked:"BLOCKED"};
    RENDER
    =================================================================== */
 let ordenProd={col:"riesgo",dir:-1};
-let subtabObra="resumen";
+let subtabObra="tareas";
 
 function render(){
   const rs=$("#rolSel");
@@ -738,6 +780,7 @@ function vistaObra(){
       <button class="btn btn-ghost btn-sm" onclick="editarPrecio('${p.id}')">Cambiar precio/hora</button>
     </div>
     <div class="subtabs" id="subtabs">
+      ${subBtn("tareas", pendientesObra(p.id).length?`Tareas · ${pendientesObra(p.id).length} por validar`:"Tareas")}
       ${subBtn("resumen","Resumen")}${subBtn("plan","Plan maestro")}${subBtn("lookahead","Lookahead 4 sem.")}
       ${subBtn("objetivos","Objetivos")}${subBtn("desv","Desviaciones")}${subBtn("cert","Certificación")}
     </div>
@@ -748,6 +791,7 @@ function vistaObra(){
 function subBtn(id,txt){ return `<button data-sub="${id}" class="${subtabObra===id?'on':''}">${txt}</button>`; }
 function renderSub(p,k){
   const c=$("#subcont");
+  if(subtabObra==="tareas"){c.innerHTML=subTareas(p);activarTareas(p);}
   if(subtabObra==="resumen")c.innerHTML=subResumen(p,k);
   if(subtabObra==="plan")c.innerHTML=subPlan(p);
   if(subtabObra==="lookahead"){c.innerHTML=subLookahead(p);activarLookahead(p);}
@@ -755,6 +799,127 @@ function renderSub(p,k){
   if(subtabObra==="desv")c.innerHTML=subDesviaciones(p);
   if(subtabObra==="cert")c.innerHTML=subCertificacion(p,k);
 }
+/* ---- TAREAS (ingeniero → encargado), imputación y validación ---- */
+const IMP_CHIP={pendiente:"w",validada:"g",rechazada:"c"};
+const IMP_TXT={pendiente:"Pendiente",validada:"Validada",rechazada:"Rechazada"};
+function subTareas(p){
+  const ts=tareasDe(p.id);
+  let presu=0,acor=0,val=0,pend=0;
+  ts.forEach(t=>{presu+=t.presupuestado||0;acor+=t.acordado||0;const h=horasTarea(t);val+=h.val;pend+=h.pend;});
+  const desvAc=val-acor;
+  const rollup=`
+    <div class="kpis" style="margin-bottom:16px">
+      ${verPresu()?kpiCard("Presupuestado",fmtH(presu),"target","n","Solo ingeniería/dirección"):""}
+      ${kpiCard("Acordado",fmtH(acor),"users","n","Ingeniero ↔ encargado")}
+      ${kpiCard("Imputado (validado)",fmtH(val),"check",semaforoDesv(acor?desvAc/acor*100:0),(desvAc>=0?"+":"")+fmtH(desvAc)+" vs acordado")}
+      ${kpiCard("Por validar",fmtH(pend),"clock",pend?"w":"g",pendientesObra(p.id).length+" imputaciones")}
+    </div>`;
+  const cabecera=`<div class="cab"><h3>${ICON("list",16)} Tareas de la obra</h3><div class="sep"></div>
+      ${puedeGestionar()?`<button class="btn btn-pri btn-sm" onclick="nuevaTarea('${p.id}')">${ICON("plus",15)} Nueva tarea</button>`:""}</div>`;
+  if(!ts.length) return `<div class="panel">${cabecera}<div class="cuerpo"><div class="empty">${ICON("list",40)}<p>Sin tareas. ${puedeGestionar()?"Crea la primera y asígnasela al encargado.":"El ingeniero aún no ha creado tareas."}</p></div></div></div>`;
+  const cards=ts.map(t=>tareaCard(t,p)).join("");
+  return `<div class="panel">${cabecera}<div class="cuerpo">${rollup}</div></div>${cards}`;
+}
+function tareaCard(t,p){
+  const f=famById(t.familia), h=horasTarea(t);
+  const imps=imputDeTarea(t.id).sort((a,b)=>a.fecha<b.fecha?1:-1);
+  const pctAc=t.acordado?Math.min(100,Math.round(h.val/t.acordado*100)):0;
+  const sub=(t.subtareas||[]).map(st=>`
+    <div style="display:flex;align-items:center;gap:9px;padding:5px 0">
+      <button class="stbox ${st.hecha?'on':''}" data-t="${t.id}" data-st="${st.id}" ${puedeGestionar()?'':'disabled'} aria-label="Hecha">${st.hecha?ICON("check",13):""}</button>
+      <span style="font-size:13px;${st.hecha?'color:var(--muted);text-decoration:line-through':''}">${esc(st.nom)}</span>
+    </div>`).join("")||'<div class="mini">Sin subtareas.</div>';
+  const impRows=imps.map(i=>`
+    <div class="fam-row" style="padding:8px 0">
+      <div class="nom" style="min-width:0;flex:1;font-weight:500;font-size:13px">${fDMA(i.fecha)} · <b>${i.horas} h</b> <span class="mini">· ${esc(i.por)}${i.nota?" · "+esc(i.nota):""}</span></div>
+      <div style="display:flex;align-items:center;gap:7px">
+        <span class="chip ${IMP_CHIP[i.estado]}">${IMP_TXT[i.estado]}</span>
+        ${(i.estado==="pendiente"&&puedeGestionar())?`<button class="btn btn-sm" style="background:var(--ok);color:#fff" onclick="validarImput('${i.id}',true)">Aprobar</button><button class="btn btn-sm" style="background:var(--bad);color:#fff" onclick="validarImput('${i.id}',false)">Rechazar</button>`:""}
+      </div>
+    </div>`).join("")||'<div class="mini">Sin imputaciones todavía.</div>';
+  return `<div class="panel">
+    <div class="cab">
+      <h3 style="font-size:14px">${fcode(f)} ${esc(t.nombre)}</h3><div class="sep"></div>
+      <span class="mini">${ICON("calendar",13)} ${fDMA(t.fecha_creacion)} · ${ICON("user",13)} ${esc(t.responsable)}</span>
+    </div>
+    <div class="cuerpo">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+        ${verPresu()?`<span class="chip x">Presup. ${t.presupuestado} h</span>`:""}
+        <span class="chip n">Acordado ${t.acordado} h</span>
+        <span class="chip g">Validadas ${h.val} h</span>
+        ${h.pend?`<span class="chip w">Pend. ${h.pend} h</span>`:""}
+      </div>
+      <div class="barwrap" style="min-width:0;margin-bottom:14px"><div class="bar"><i style="width:${pctAc}%"></i></div><b>${pctAc}%</b><span class="mini">de lo acordado</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+        <div>
+          <div class="mini" style="font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">Subtareas</div>
+          ${sub}
+        </div>
+        <div>
+          <div class="mini" style="font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;display:flex;align-items:center;gap:8px">Imputaciones ${(puedeGestionar()||esEncargado())?`<button class="btn btn-ghost btn-sm" style="padding:4px 8px" onclick="imputarTarea('${t.id}')">${ICON("plus",13)} Imputar</button>`:""}</div>
+          ${impRows}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+function activarTareas(p){
+  $$(".stbox:not([disabled])").forEach(b=> b.onclick=()=> toggleSubtarea(b.dataset.t,b.dataset.st));
+}
+function toggleSubtarea(tid,stid){
+  const t=(DB.tareas||[]).find(x=>x.id===tid); if(!t)return;
+  const st=(t.subtareas||[]).find(x=>x.id===stid); if(!st)return;
+  st.hecha=!st.hecha; guardar(); esEncargado()?vistaEncargado():vistaObra();
+}
+function validarImput(id,ok){
+  const i=(DB.imputaciones||[]).find(x=>x.id===id); if(!i)return;
+  const p=P(i.obra);
+  i.estado=ok?"validada":"rechazada"; i.validado_por=p?.ingeniero||"Ingeniero"; i.validado_at=ISO(hoy());
+  guardar(); vistaObra(); toast(ok?"Imputación validada":"Imputación rechazada", ok?"check":"ban");
+}
+function nuevaTarea(obraId){
+  const famOpts=FAMILIAS.map(f=>`<option value="${f.id}">${f.cod} · ${f.nom}</option>`).join("");
+  modal({titulo:"Nueva tarea para el encargado",cuerpo:`
+    <div class="field"><label>Familia / partida</label><select id="t_fam">${famOpts}</select></div>
+    <div class="field"><label>Nombre de la tarea</label><input id="t_nom" placeholder="Ej. Canalizaciones Zona A"></div>
+    <div class="field"><div class="row">
+      <div><label>Responsable (encargado)</label><input id="t_resp" value="Marcos"></div>
+      <div><label>Fecha de creación</label><input type="date" id="t_fec" value="${ISO(hoy())}"></div>
+    </div></div>
+    <div class="field"><div class="row">
+      <div><label>Presupuestado (h) · interno</label><input type="number" id="t_pre" min="0" placeholder="solo ingeniería"></div>
+      <div><label>Acordado con encargado (h)</label><input type="number" id="t_aco" min="0"></div>
+    </div></div>
+    <div class="field"><label>Subtareas (una por línea)</label><textarea id="t_sub" placeholder="Replanteo&#10;Montaje&#10;Comprobaciones"></textarea></div>`,
+    ok:"Crear tarea",onOk:()=>{
+      const nom=$("#t_nom").value.trim(); if(!nom){toast("Pon un nombre","alert");return false;}
+      const subs=$("#t_sub").value.split("\n").map(s=>s.trim()).filter(Boolean).map(s=>({id:uid("st"),nom:s,hecha:false}));
+      DB.tareas=DB.tareas||[];
+      DB.tareas.push({id:uid("t"),obra:obraId,familia:$("#t_fam").value,nombre:nom,responsable:$("#t_resp").value.trim()||"—",
+        fecha_creacion:$("#t_fec").value||ISO(hoy()),presupuestado:+$("#t_pre").value||0,acordado:+$("#t_aco").value||0,
+        estado:"abierta",subtareas:subs,created_by:DB.rolActual,created_at:ISO(hoy())});
+      guardar(); vistaObra(); toast("Tarea creada"); return true;
+    }});
+}
+function imputarTarea(tid){
+  const t=(DB.tareas||[]).find(x=>x.id===tid); if(!t)return;
+  modal({titulo:"Imputar horas",cuerpo:`
+    <div class="mini" style="margin-bottom:12px">${esc(t.nombre)} · acordado ${t.acordado} h</div>
+    <div class="field"><div class="row">
+      <div><label>Fecha</label><input type="date" id="i_fec" value="${ISO(hoy())}"></div>
+      <div><label>Horas</label><input type="number" id="i_h" min="0" step="0.5" value="8"></div>
+    </div></div>
+    <div class="field"><label>Nota (opcional)</label><input id="i_nota" placeholder="Qué se hizo"></div>
+    <div class="hint">${ICON("info",16)}<span>La imputación queda <b>pendiente</b> hasta que el ingeniero la valide.</span></div>`,
+    ok:"Imputar",onOk:()=>{
+      const h=+$("#i_h").value||0; if(h<=0){toast("Indica las horas","alert");return false;}
+      const por=esEncargado()?"Marcos":(t.responsable||"—");
+      DB.imputaciones=DB.imputaciones||[];
+      DB.imputaciones.push({id:uid("i"),tarea:t.id,obra:t.obra,fecha:$("#i_fec").value||ISO(hoy()),horas:h,por,nota:$("#i_nota").value.trim(),estado:"pendiente",validado_por:"",validado_at:""});
+      guardar(); if(esEncargado())vistaEncargado(); else vistaObra(); toast("Horas imputadas · pendiente de validar"); return true;
+    }});
+}
+
 function subResumen(p,k){
   const max=Math.max(...p.baselines.map(b=>b.horas),1);
   const filas=p.baselines.map(b=>{const f=famById(b.familia),pct=Math.round(b.horas/max*100);
@@ -913,35 +1078,45 @@ function editarCert(id){
 /* ---- Encargado (móvil) ---- */
 function vistaEncargado(){
   const yo="Marcos";
-  const mios=DB.compromisos.filter(c=>c.responsable===yo||(c.cuadrilla||[]).includes(yo));
-  mios.sort((a,b)=>a.semana-b.semana);
-  const activos=mios.filter(c=>c.estado!=="terminado"), hechos=mios.filter(c=>c.estado==="terminado");
+  const mias=(DB.tareas||[]).filter(t=>t.responsable===yo);
+  const hoyI=ISO(hoy());
+  const impHoy=(DB.imputaciones||[]).filter(i=>i.por===yo && i.fecha===hoyI).reduce((s,i)=>s+(+i.horas||0),0);
   $('[data-vista="encargado"]').innerHTML=`
   <div class="mob">
-    <div class="sal"><div class="h">Hola, ${esc(yo)}</div><div class="d">${activos.length} objetivo${activos.length!==1?"s":""} asignado${activos.length!==1?"s":""} · menos de 2 min al día</div></div>
-    <div class="hint" style="margin-bottom:14px">${ICON("info",16)}<span>Las <b>horas</b> se registran desde tu parte de Fixner. Aquí solo marcas avance, bloqueos, material y trabajo terminado.</span></div>
-    ${activos.map(mCard).join("")||`<div class="empty">${ICON("checkCircle",40)}<p>No tienes objetivos activos.</p></div>`}
-    ${hechos.length?`<div class="mini" style="margin:18px 0 8px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Terminados</div>`+hechos.map(mCard).join(""):""}
+    <div class="sal"><div class="h">Hola, ${esc(yo)}</div><div class="d">${mias.length} tarea${mias.length!==1?"s":""} asignada${mias.length!==1?"s":""} · hoy llevas ${impHoy} h imputadas</div></div>
+    <div class="hint" style="margin-bottom:14px">${ICON("info",16)}<span>Imputa cada día las <b>horas</b> en cada tarea. El ingeniero las valida. Verás el tiempo <b>acordado</b>, no el presupuestado.</span></div>
+    ${mias.map(mCardTarea).join("")||`<div class="empty">${ICON("list",40)}<p>No tienes tareas asignadas todavía.</p></div>`}
   </div>`;
 }
-function mCard(c){
-  const f=famById(c.familia),er=estadoRestriccion(c),p=P(c.obra);
-  const rest=Math.max(0,c.horas_objetivo-c.horas_reales),term=c.estado==="terminado";
-  return `<div class="mcard ${R2CLS[er]}">
-    <div class="top2"><div class="fam">${fcode(f)}<span>${esc(f.nom)}</span><span class="chip ${R2CHIP[er]}">${R2TXT[er]}</span></div>
-      <div class="ti">${esc(c.titulo)}</div><div class="ob">${esc(p?.nombre||"")} · Semana +${c.semana}</div></div>
+function mCardTarea(t){
+  const f=famById(t.familia), p=P(t.obra), h=horasTarea(t);
+  const rest=Math.max(0,(t.acordado||0)-h.val);
+  const pct=t.acordado?Math.min(100,Math.round(h.val/t.acordado*100)):0;
+  const subs=(t.subtareas||[]).map(st=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:6px 0">
+      <button class="stbox ${st.hecha?'on':''}" onclick="toggleSubtarea('${t.id}','${st.id}')" aria-label="Hecha">${st.hecha?ICON("check",13):""}</button>
+      <span style="font-size:14px;${st.hecha?'color:var(--muted);text-decoration:line-through':''}">${esc(st.nom)}</span>
+    </div>`).join("")||'<div class="mini">Sin subtareas.</div>';
+  const imps=imputDeTarea(t.id).sort((a,b)=>a.fecha<b.fecha?1:-1).slice(0,4).map(i=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12.5px">
+      <span class="mono">${fDMA(i.fecha)}</span><b class="mono">${i.horas} h</b>
+      <span class="sep" style="flex:1"></span><span class="chip ${IMP_CHIP[i.estado]}">${IMP_TXT[i.estado]}</span>
+    </div>`).join("")||'<div class="mini">Aún no has imputado horas.</div>';
+  return `<div class="mcard">
+    <div class="top2"><div class="fam">${fcode(f)}<span>${esc(f.nom)}</span></div>
+      <div class="ti">${esc(t.nombre)}</div><div class="ob">${esc(p?.nombre||"")}</div></div>
     <div class="horas">
-      <div class="hbox"><div class="n">${c.horas_objetivo}</div><div class="l">Objetivo</div></div>
-      <div class="hbox"><div class="n">${c.horas_reales}</div><div class="l">Consum. · Fixner</div></div>
+      <div class="hbox"><div class="n">${t.acordado||0}</div><div class="l">Acordado</div></div>
+      <div class="hbox"><div class="n">${h.val}</div><div class="l">Validadas</div></div>
       <div class="hbox rest"><div class="n">${rest}</div><div class="l">Restantes</div></div></div>
-    <div class="mavance"><div class="barwrap" style="min-width:0"><div class="bar"><i style="width:${c.avance}%"></i></div><b>${c.avance}%</b></div></div>
-    ${term?`<div style="padding:0 15px 15px"><span class="chip g">${ICON("check",13)} Terminado</span></div>`:`
-    <div class="acc">
-      <button onclick="mAvance('${c.id}')">${ICON("trending",20)}Actualizar avance</button>
-      <button class="blo" onclick="mBloqueo('${c.id}')">${ICON("ban",20)}Bloqueo</button>
-      <button onclick="mMaterial('${c.id}')">${ICON("box",20)}Material</button>
-      <button class="fin" onclick="mTerminar('${c.id}')">${ICON("check",20)}Terminar</button>
-    </div>`}
+    <div class="mavance"><div class="barwrap" style="min-width:0"><div class="bar"><i style="width:${pct}%"></i></div><b>${pct}%</b></div></div>
+    <div style="padding:0 15px 10px">
+      <div class="mini" style="font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin:4px 0 4px">Subtareas</div>${subs}
+      <div class="mini" style="font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin:12px 0 2px">Mis imputaciones</div>${imps}
+    </div>
+    <div class="acc" style="grid-template-columns:1fr">
+      <button class="fin" onclick="imputarTarea('${t.id}')">${ICON("clock",20)}Imputar horas de hoy</button>
+    </div>
   </div>`;
 }
 function CO(id){ return DB.compromisos.find(c=>c.id===id); }
@@ -1083,7 +1258,8 @@ $("#btnAjustes").addEventListener("click",()=>{ if(ROLES[DB.rolActual].vistas.in
 
 if(!cargar()){ DB=semilla(); guardar(); }
 render();
-Object.assign(window,{irA,abrirObra,ordenar,abrirObjetivo,nuevoObjetivo,nuevaDesviacion,nuevaObra,editarRestante,editarPrecio,editarCert,guardarConfig,mAvance,mBloqueo,mMaterial,mTerminar,cerrarModal});
+Object.assign(window,{irA,abrirObra,ordenar,abrirObjetivo,nuevoObjetivo,nuevaDesviacion,nuevaObra,editarRestante,editarPrecio,editarCert,guardarConfig,mAvance,mBloqueo,mMaterial,mTerminar,cerrarModal,
+  nuevaTarea,imputarTarea,validarImput,toggleSubtarea});
 </script>
 </body>
 </html>
