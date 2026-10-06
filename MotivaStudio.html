@@ -91,6 +91,18 @@ svg.ic{display:block;flex:0 0 auto;}
 .saver.saving .dot{background:var(--gold);}
 .saver.saved .dot{background:#5ac47a;}
 
+/* ---------- Day tabs bar ---------- */
+.daybar{display:flex;align-items:center;gap:8px;padding:8px 18px;background:#0a0a0a;border-bottom:1px solid var(--line);overflow-x:auto;flex:0 0 auto;z-index:28;}
+.daybar::-webkit-scrollbar{height:0;}
+.daytab{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:9px;background:var(--surface-2);border:1px solid var(--line);font-family:var(--title);font-weight:500;font-size:15px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);white-space:nowrap;transition:.12s;}
+.daytab:hover{border-color:var(--line-2);color:#fff;}
+.daytab.on{background:var(--gold);color:#111;border-color:var(--gold);}
+.daytab .dcnt{font-family:var(--ui);font-weight:700;font-size:11px;padding:1px 7px;border-radius:20px;background:#000;color:var(--dim);}
+.daytab.on .dcnt{background:rgba(0,0,0,.18);color:#111;}
+.dayadd{width:34px;height:34px;border-radius:9px;background:var(--surface-2);border:1px solid var(--line);color:var(--dim);display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;}
+.dayadd:hover{border-color:var(--gold);color:#fff;}
+body.present .dayadd{display:none;}
+
 /* ---------- Stage (board + library) ---------- */
 .stage{flex:1;display:flex;min-height:0;position:relative;}
 
@@ -345,6 +357,9 @@ body.present .exrow .exparam{font-size:19px;}
     </button>
   </header>
 
+  <!-- ===== Day tabs ===== -->
+  <div class="daybar" id="dayBar"></div>
+
   <!-- ===== Stage ===== -->
   <div class="stage">
     <div class="surface-wrap" id="surfaceWrap">
@@ -400,8 +415,19 @@ function blank(){
   return {version:1,exercises:{},tags:{},boards:{},cards:{},items:{},currentBoardId:null};
 }
 function load(){
-  try{const raw=localStorage.getItem(KEY);if(raw){state=JSON.parse(raw);return;}}catch(e){}
-  seed();
+  try{const raw=localStorage.getItem(KEY);if(raw){state=JSON.parse(raw);migrate();return;}}catch(e){}
+  seed();migrate();
+}
+/* migrate older saves to the days model */
+function migrate(){
+  Object.values(state.boards).forEach(b=>{
+    if(!b.days||!b.days.length){const d={id:uid(),name:'Día 1'};b.days=[d];b.currentDay=d.id;}
+    if(!b.currentDay||!b.days.some(d=>d.id===b.currentDay))b.currentDay=b.days[0].id;
+  });
+  Object.values(state.cards).forEach(c=>{
+    const b=state.boards[c.board_id];if(!b)return;
+    if(!c.day_id||!b.days.some(d=>d.id===c.day_id))c.day_id=b.days[0].id;
+  });
 }
 let saveT=null;
 function scheduleSave(){
@@ -429,11 +455,14 @@ function updateUndoBtns(){document.getElementById('btnUndo').style.opacity=undoS
 /* commit = persist + rerender. The undo snapshot is taken by each action
    via pushUndo() BEFORE it mutates state, so commit must NOT push again. */
 function commit(rerender=true){if(rerender)afterChange();else scheduleSave();}
-function afterChange(){renderBoard();renderBoardPicker();renderLibrary();scheduleSave();}
+function afterChange(){renderDayTabs();renderBoard();renderBoardPicker();renderLibrary();scheduleSave();}
 
 /* ---- entity helpers ---- */
 function curBoard(){return state.boards[state.currentBoardId];}
 function boardCards(bid){return Object.values(state.cards).filter(c=>c.board_id===bid).sort((a,b)=>a.sort_order-b.sort_order);}
+function boardDays(b){if(!b.days||!b.days.length){b.days=[{id:uid(),name:'Día 1'}];b.currentDay=b.days[0].id;}return b.days;}
+function curDayId(){const b=curBoard();if(!b)return null;const days=boardDays(b);if(!b.currentDay||!days.some(d=>d.id===b.currentDay))b.currentDay=days[0].id;return b.currentDay;}
+function dayCards(bid,dayId){return boardCards(bid).filter(c=>c.day_id===dayId);}
 function cardItems(cid){return Object.values(state.items).filter(i=>i.card_id===cid).sort((a,b)=>a.sort_order-b.sort_order);}
 function exTags(ex){return (ex.tags||[]).map(id=>state.tags[id]).filter(Boolean);}
 
@@ -474,33 +503,39 @@ function seed(){
     exIds[name]=id;
   });
 
-  // demo board
+  // demo board: a 2-day program (Día 1 / Día 2)
   const bid=uid();
-  state.boards[bid]={id:bid,name:'Semana Demo',description:'',created_at:now(),updated_at:now(),is_archived:false};
+  const day1=uid(),day2=uid();
+  state.boards[bid]={id:bid,name:'Semana Demo',description:'',days:[{id:day1,name:'Día 1'},{id:day2,name:'Día 2'}],currentDay:day1,created_at:now(),updated_at:now(),is_archived:false};
   state.currentBoardId=bid;
 
   let so=0;
-  const mkCard=(title,x,y,w,h,color)=>{const id=uid();state.cards[id]={id,board_id:bid,title,position_x:x,position_y:y,width:w,height:h,sort_order:so++,color:color||'#D4AF37',timer:null,created_at:now(),updated_at:now()};return id;};
+  const mkCard=(day,title,x,y,w,h,color)=>{const id=uid();state.cards[id]={id,board_id:bid,day_id:day,title,position_x:x,position_y:y,width:w,height:h,sort_order:so++,color:color||'#D4AF37',timer:null,created_at:now(),updated_at:now()};return id;};
   const addEx=(cid,name,p={})=>{const id=uid();state.items[id]=Object.assign({id,card_id:cid,exercise_id:exIds[name],sort_order:cardItems(cid).length,sets:'',reps:'',duration:'',distance:'',weight:'',side:'',rest:'',notes:''},p);};
 
   let c;
-  c=mkCard('Calentamiento',40,40,300,300);
+  // --- Día 1 ---
+  c=mkCard(day1,'Calentamiento',40,40,300,300);
   addEx(c,'BikeErg',{duration:"2'"});addEx(c,'Plancha',{duration:'45 s'});addEx(c,'Push Up',{reps:'10'});
 
-  c=mkCard('Movilidad',360,40,300,300);
+  c=mkCard(day1,'Movilidad',360,40,300,300);
   addEx(c,'Goblet Squat',{sets:'2',reps:'8'});addEx(c,'Kettlebell Swing',{sets:'2',reps:'12'});
 
-  c=mkCard('Empujes',680,40,320,360,'#C5A059');
+  c=mkCard(day1,'Empujes',680,40,320,360,'#C5A059');
   addEx(c,'Push Press',{sets:'4',reps:'8'});addEx(c,'Bench Press',{sets:'3',reps:'10'});addEx(c,'Landmine Press',{sets:'3',reps:'10'});
 
-  c=mkCard('Full Body',40,360,320,340);
+  c=mkCard(day1,'Full Body',40,360,320,340);
   addEx(c,'Back Squat',{sets:'5',reps:'5'});addEx(c,'Deadlift',{sets:'3',reps:'5'});addEx(c,'Pull Up',{sets:'4',reps:'6'});
 
-  c=mkCard('Metabólico',380,360,340,420,'#D4AF37');
+  // --- Día 2 ---
+  c=mkCard(day2,'Calentamiento',40,40,300,300);
+  addEx(c,'BikeErg',{duration:"3'"});addEx(c,'Kettlebell Swing',{sets:'2',reps:'12'});
+
+  c=mkCard(day2,'Metabólico',360,40,340,420,'#D4AF37');
   state.cards[c].timer={type:'AMRAP',duration:720,work:0,rest:0,rounds:0};
   addEx(c,'Goblet Squat',{reps:'10'});addEx(c,'Burpee',{reps:'8'});addEx(c,'Remo',{distance:'200 m'});
 
-  c=mkCard('Hombro Lesionado',740,420,320,300);
+  c=mkCard(day2,'Hombro Lesionado',720,40,320,300);
   addEx(c,'TRX Row',{sets:'3',reps:'12'});addEx(c,'Landmine Press',{sets:'3',reps:'12'});
 
   try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}
@@ -554,10 +589,12 @@ function renderBoard(){
   const b=curBoard();
   surface.innerHTML='';
   if(!b){surface.innerHTML='<div class="hint-empty"><div class="big">Sin pizarra</div></div>';return;}
-  const cards=boardCards(b.id);
+  const dayId=curDayId();
+  const cards=dayCards(b.id,dayId);
   if(!cards.length){
+    const dname=(boardDays(b).find(d=>d.id===dayId)||{}).name||'este día';
     const h=document.createElement('div');h.className='hint-empty';
-    h.innerHTML='<div class="big">Pizarra vacía</div><div class="small">Pulsa «Nueva tarjeta» o clic derecho / pulsación larga sobre el fondo.</div>';
+    h.innerHTML=`<div class="big">${esc(dname)} · vacío</div><div class="small">Pulsa «Nueva tarjeta» o clic derecho / pulsación larga sobre el fondo.</div>`;
     surface.appendChild(h);
   }
   cards.forEach(c=>surface.appendChild(renderCard(c)));
@@ -855,7 +892,8 @@ function attachContext(el,fn){
 /* ---- menus ---- */
 function openCardMenu(cid,x,y){
   selectCard(cid);
-  showMenu(x,y,[
+  const c=state.cards[cid];const b=curBoard();
+  const items=[
     {icon:'plus',label:'Añadir ejercicio',action:()=>openPalette(cid)},
     {icon:'clock',label:'Añadir bloque temporizado',action:()=>openTimerModal(cid)},
     {icon:'edit',label:'Editar título',action:()=>editCardTitle(cid)},
@@ -863,10 +901,17 @@ function openCardMenu(cid,x,y){
     {icon:'copy',label:'Duplicar tarjeta',action:()=>duplicateCard(cid)},
     {icon:'resize',label:'Cambiar tamaño',action:()=>resizePreset(cid)},
     {icon:'eraser',label:'Vaciar tarjeta',action:()=>emptyCard(cid)},
-    {sep:1},
-    {icon:'trash',label:'Eliminar tarjeta',danger:true,action:()=>deleteCard(cid)},
-  ]);
+  ];
+  if(b&&boardDays(b).length>1){
+    items.push({sep:1});
+    boardDays(b).filter(d=>d.id!==c.day_id).forEach(d=>{
+      items.push({icon:'move',label:'Mover a '+d.name,action:()=>moveCardToDay(cid,d.id)});
+    });
+  }
+  items.push({sep:1},{icon:'trash',label:'Eliminar tarjeta',danger:true,action:()=>deleteCard(cid)});
+  showMenu(x,y,items);
 }
+function moveCardToDay(cid,dayId){pushUndo();state.cards[cid].day_id=dayId;const b=curBoard();if(b)b.currentDay=dayId;commit();selectCard(cid);}
 function openExMenu(itemId,x,y){
   showMenu(x,y,[
     {icon:'edit',label:'Editar series / reps / tiempo',action:()=>openParamEditor(itemId)},
@@ -893,7 +938,7 @@ function newCard(x=null,y=null){
   const so=cards.length?Math.max(...cards.map(c=>c.sort_order))+1:0;
   if(x==null){const base=40+(cards.length%5)*60;x=base;y=base;}
   const id=uid();
-  state.cards[id]={id,board_id:b.id,title:'NUEVA TARJETA',position_x:Math.round(x),position_y:Math.round(y),width:300,height:300,sort_order:so,color:'#D4AF37',timer:null,created_at:now(),updated_at:now()};
+  state.cards[id]={id,board_id:b.id,day_id:curDayId(),title:'NUEVA TARJETA',position_x:Math.round(x),position_y:Math.round(y),width:300,height:300,sort_order:so,color:'#D4AF37',timer:null,created_at:now(),updated_at:now()};
   commit();
   selectCard(id);
   editCardTitle(id);
@@ -1139,7 +1184,66 @@ function openModal({title,fields,onSave,sm}){
 function renderBoardPicker(){
   const b=curBoard();
   document.getElementById('boardName').textContent=b?b.name:'—';
-  document.getElementById('boardCnt').textContent=b?`${boardCards(b.id).length} tarjetas`:'';
+  document.getElementById('boardCnt').textContent=b?`${boardDays(b).length} día${boardDays(b).length>1?'s':''} · ${boardCards(b.id).length} tarjetas`:'';
+}
+
+/* ---- Day tabs ---- */
+function renderDayTabs(){
+  const bar=document.getElementById('dayBar');const b=curBoard();
+  if(!b){bar.innerHTML='';return;}
+  const days=boardDays(b),cur=curDayId();
+  bar.innerHTML='';
+  days.forEach(d=>{
+    const t=document.createElement('button');t.className='daytab'+(d.id===cur?' on':'');t.dataset.day=d.id;
+    t.innerHTML=`<span class="dname">${esc(d.name)}</span><span class="dcnt">${dayCards(b.id,d.id).length}</span>`;
+    t.addEventListener('click',()=>{if(d.id!==b.currentDay){b.currentDay=d.id;scheduleSave();afterChange();}});
+    t.addEventListener('dblclick',e=>{e.stopPropagation();renameDay(d.id);});
+    attachContext(t,(x,y)=>openDayMenu(d.id,x,y));
+    bar.appendChild(t);
+  });
+  const add=document.createElement('button');add.className='dayadd';add.title='Añadir día';add.innerHTML=ic('plus',16);
+  add.addEventListener('click',addDay);bar.appendChild(add);
+}
+function openDayMenu(dayId,x,y){
+  showMenu(x,y,[
+    {icon:'edit',label:'Renombrar día',action:()=>renameDay(dayId)},
+    {icon:'copy',label:'Duplicar día',action:()=>duplicateDay(dayId)},
+    {sep:1},
+    {icon:'trash',label:'Eliminar día',danger:true,action:()=>deleteDay(dayId)},
+  ]);
+}
+function addDay(){
+  const b=curBoard();if(!b)return;pushUndo();
+  const d={id:uid(),name:'Día '+(boardDays(b).length+1)};
+  b.days.push(d);b.currentDay=d.id;commit();
+}
+function renameDay(dayId){
+  const b=curBoard();const d=boardDays(b).find(x=>x.id===dayId);if(!d)return;
+  openModal({title:'Renombrar día',sm:true,fields:[{key:'name',label:'Nombre',value:d.name,autofocus:true}],onSave:v=>{pushUndo();d.name=(v.name||'').trim()||d.name;commit();}});
+}
+function duplicateDay(dayId){
+  const b=curBoard();const d=boardDays(b).find(x=>x.id===dayId);if(!d)return;pushUndo();
+  const nd={id:uid(),name:nextName(d.name)};
+  const idx=b.days.findIndex(x=>x.id===dayId);b.days.splice(idx+1,0,nd);
+  dayCards(b.id,dayId).forEach(c=>{
+    const ncid=uid();
+    state.cards[ncid]=Object.assign({},c,{id:ncid,day_id:nd.id,sort_order:boardCards(b.id).length,timer:c.timer?Object.assign({},c.timer):null,created_at:now(),updated_at:now()});
+    cardItems(c.id).forEach(it=>{const iid=uid();state.items[iid]=Object.assign({},it,{id:iid,card_id:ncid});});
+  });
+  b.currentDay=nd.id;commit();
+}
+function deleteDay(dayId){
+  const b=curBoard();
+  if(boardDays(b).length<=1){toast('No puedes eliminar el único día');return;}
+  const d=b.days.find(x=>x.id===dayId);const cards=dayCards(b.id,dayId);
+  const backup={day:JSON.parse(JSON.stringify(d)),idx:b.days.findIndex(x=>x.id===dayId),bid:b.id,
+    cards:cards.map(c=>JSON.parse(JSON.stringify(c))),items:cards.flatMap(c=>cardItems(c.id).map(i=>JSON.parse(JSON.stringify(i))))};
+  pushUndo();
+  cards.forEach(c=>{cardItems(c.id).forEach(i=>delete state.items[i.id]);delete state.cards[c.id];delete timers[c.id];});
+  b.days=b.days.filter(x=>x.id!==dayId);
+  if(b.currentDay===dayId)b.currentDay=b.days[0].id;
+  commit();
+  toast(`"${d.name}" eliminado`,()=>{pushUndo();const bb=state.boards[backup.bid];if(bb){bb.days.splice(backup.idx,0,backup.day);}backup.cards.forEach(c=>state.cards[c.id]=c);backup.items.forEach(i=>state.items[i.id]=i);commit();});
 }
 function openBoards(){
   const ov=makeOverlay();const m=document.createElement('div');m.className='modal';
@@ -1148,7 +1252,7 @@ function openBoards(){
     m.innerHTML=`<div class="mhead"><h3>Pizarras</h3><button class="mx">✕</button></div>
       <div class="mbody"><div class="blist">${boards.map(b=>`
         <div class="brow ${b.id===state.currentBoardId?'cur':''}" data-b="${b.id}">
-          <div class="binfo"><div class="bname">${esc(b.name)}</div><div class="bmeta">${boardCards(b.id).length} tarjetas</div></div>
+          <div class="binfo"><div class="bname">${esc(b.name)}</div><div class="bmeta">${boardDays(b).length} día${boardDays(b).length>1?'s':''} · ${boardCards(b.id).length} tarjetas</div></div>
           <div class="bacts">
             <button data-a="open" title="Abrir">${ic('eye',16)}</button>
             <button data-a="dup" title="Duplicar">${ic('copy',16)}</button>
@@ -1160,9 +1264,14 @@ function openBoards(){
     m.querySelector('.mx').addEventListener('click',()=>ov.remove());
     m.querySelector('#newBoard').addEventListener('click',()=>{
       ov.remove();
-      openModal({title:'Nueva pizarra',sm:true,fields:[{key:'name',label:'Nombre',value:'',ph:'Semana 42',autofocus:true}],onSave:v=>{
+      openModal({title:'Nueva pizarra',sm:true,fields:[
+        {key:'name',label:'Nombre',value:'',ph:'Semana 42',autofocus:true},
+        {key:'days',label:'Nº de días de entreno',value:2,type:'number'},
+      ],onSave:v=>{
         const name=(v.name||'').trim()||'Nueva pizarra';pushUndo();const id=uid();
-        state.boards[id]={id,name,description:'',created_at:now(),updated_at:now(),is_archived:false};
+        const n=Math.max(1,Math.min(7,+v.days||1));
+        const days=[];for(let i=1;i<=n;i++)days.push({id:uid(),name:'Día '+i});
+        state.boards[id]={id,name,description:'',days,currentDay:days[0].id,created_at:now(),updated_at:now(),is_archived:false};
         state.currentBoardId=id;commit();
       }});
     });
@@ -1182,10 +1291,12 @@ function openBoards(){
 function duplicateBoard(bid){
   const b=state.boards[bid];pushUndo();
   const nid=uid();
-  state.boards[nid]={id:nid,name:nextName(b.name),description:b.description,created_at:now(),updated_at:now(),is_archived:false};
+  const dayMap={};
+  const days=boardDays(b).map(d=>{const ndid=uid();dayMap[d.id]=ndid;return {id:ndid,name:d.name};});
+  state.boards[nid]={id:nid,name:nextName(b.name),description:b.description,days,currentDay:dayMap[b.currentDay]||days[0].id,created_at:now(),updated_at:now(),is_archived:false};
   boardCards(bid).forEach(c=>{
     const ncid=uid();
-    state.cards[ncid]=Object.assign({},c,{id:ncid,board_id:nid,timer:c.timer?Object.assign({},c.timer):null,created_at:now(),updated_at:now()});
+    state.cards[ncid]=Object.assign({},c,{id:ncid,board_id:nid,day_id:dayMap[c.day_id]||days[0].id,timer:c.timer?Object.assign({},c.timer):null,created_at:now(),updated_at:now()});
     cardItems(c.id).forEach(it=>{const iid=uid();state.items[iid]=Object.assign({},it,{id:iid,card_id:ncid});});
   });
   state.currentBoardId=nid;commit();
