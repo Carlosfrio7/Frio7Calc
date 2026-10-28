@@ -289,6 +289,24 @@
   .seg button.si.on{border-color:var(--ok-line);background:var(--ok-bg);color:var(--ok);}
   .seg button.no.on{border-color:var(--bad-line);background:var(--bad-bg);color:var(--bad);}
 
+  /* Márgenes de obra */
+  .mg-row{padding:15px 0;border-bottom:1px solid var(--line);}
+  .mg-row:last-child{border-bottom:0;padding-bottom:2px;}
+  .mg-head{display:flex;align-items:flex-start;gap:12px;justify-content:space-between;}
+  .mg-name{font-weight:600;font-size:14px;min-width:0;}
+  .mg-chips{display:flex;gap:6px;flex:0 0 auto;flex-wrap:wrap;justify-content:flex-end;}
+  .mg-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:11px 0;}
+  .mg-fig{display:flex;flex-direction:column;gap:2px;}
+  .mg-fig .l{font-size:10.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.3px;}
+  .mg-fig b{font-family:var(--mono);font-size:13.5px;font-weight:700;}
+  .mg-bar{display:flex;align-items:center;gap:12px;}
+  .mg-track{position:relative;height:14px;flex:1;background:var(--surface-3);border:1px solid var(--line);border-radius:5px;overflow:hidden;}
+  .mg-track>i{position:absolute;top:0;height:100%;}
+  .mg-zero{position:absolute;top:0;height:100%;width:2px;background:var(--line-2);}
+  .mtarget{position:absolute;top:0;height:100%;width:2px;background:var(--text);opacity:.5;}
+  .mg-pct{flex:0 0 auto;min-width:132px;text-align:right;}
+  @media(max-width:640px){.mg-grid{grid-template-columns:repeat(2,1fr);} .mg-pct{min-width:0;}}
+
   .hint{font-size:12.5px;color:var(--text-2);background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r);padding:11px 13px;line-height:1.5;display:flex;gap:9px;}
   .hint .ic{color:var(--muted);margin-top:1px;}
   .hint.warn{background:var(--warn-bg);border-color:var(--warn-line);color:#92500a;} .hint.warn .ic{color:var(--warn);}
@@ -337,6 +355,7 @@
 
 <main class="wrap">
   <section class="vista" data-vista="direccion"></section>
+  <section class="vista" data-vista="margenes"></section>
   <section class="vista" data-vista="produccion"></section>
   <section class="vista" data-vista="obra"></section>
   <section class="vista" data-vista="encargado"></section>
@@ -435,13 +454,14 @@ const fcode = f => `<span class="fcode">${f.cod}</span>`;
 
 /* ---------- roles ---------- */
 const ROLES = {
-  dir_general: {nom:"Dirección general (Carlos)", vistas:["direccion","produccion","obra","equipo","ajustes"]},
-  dir_tecnica: {nom:"Dirección técnica (Aridany)", vistas:["direccion","produccion","obra","equipo","ajustes"]},
-  ingeniero:   {nom:"Ingeniero de obra", vistas:["produccion","obra","equipo","ajustes"]},
+  dir_general: {nom:"Dirección general (Carlos)", vistas:["direccion","margenes","produccion","obra","equipo","ajustes"]},
+  dir_tecnica: {nom:"Dirección técnica (Aridany)", vistas:["direccion","margenes","produccion","obra","equipo","ajustes"]},
+  ingeniero:   {nom:"Ingeniero de obra", vistas:["produccion","margenes","obra","equipo","ajustes"]},
   encargado:   {nom:"Encargado / Oficial (Marcos)", vistas:["encargado"]},
 };
 const NAV_META = {
   direccion:  {et:"Dirección",  ic:"dashboard"},
+  margenes:   {et:"Márgenes",   ic:"euro"},
   produccion: {et:"Producción", ic:"building"},
   obra:       {et:"Obra",       ic:"folder"},
   equipo:     {et:"Equipo",     ic:"users"},
@@ -457,7 +477,7 @@ const puedeGestionar = ()=> DB.rolActual==="ingeniero";     // crear tareas / va
 /* ===================================================================
    MODELO DE DATOS  (calcado del esquema Supabase, sección 29)
    =================================================================== */
-const LS_KEY = "FRIO7_PROD_V5";
+const LS_KEY = "FRIO7_PROD_V6";
 let DB = null;
 function guardar(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(DB)); }catch(e){} }
 function cargar(){ try{ const raw=localStorage.getItem(LS_KEY); if(raw){ DB=JSON.parse(raw); return true; } }catch(e){} return false; }
@@ -470,9 +490,11 @@ function semilla(){
   const audit = {created_by:"seed",created_at:ISO(t),updated_by:"seed",updated_at:ISO(t)};
 
   const proyectos = [
-    {id:"obra_ej", codigo:"EJ-24", nombre:"Espacio Joven", cliente:"Ayuntamiento",
-      ingeniero:"Raymundo Sánchez", responsable:"Aridany Hernández", fecha_inicio:semStart(-3), fecha_fin_contractual:semEnd(8),
+    {id:"obra_ej", codigo:"P-413/22", nombre:"Renov. Inst. térmica y baja tensión en Espacio Joven", cliente:"Cabildo G.C.",
+      ingeniero:"Aridany Hernández", responsable:"Aridany Hernández", sociedad:"Frío 7", estado:"En Curso",
+      fecha_inicio:semStart(-3), fecha_fin_contractual:semEnd(8),
       baseline_horas:3000, ...audit,
+      eco:{presupuesto:662523.08,costo_contratado:509633.14,margen_contratado:1.3,cert_acum:176480.86,costo_total:149795.57,margen_ratio:1.18,pdte_cert:486042.22},
       baselines:[{familia:"refrigerante",horas:850},{familia:"conductos",horas:420},{familia:"electricidad",horas:620},{familia:"falsostechos",horas:400},{familia:"puestamarcha",horas:180},{familia:"otros",horas:530}],
       plan:[
         {id:uid("ph"),familia:"refrigerante",ini:semStart(-3),fin:semStart(1),estado:"curso",avance:70},
@@ -482,9 +504,11 @@ function semilla(){
         {id:uid("ph"),familia:"pruebas",ini:semStart(6),fin:semStart(7),estado:"pend",avance:0},
         {id:uid("ph"),familia:"puestamarcha",ini:semStart(7),fin:semStart(8),estado:"pend",avance:0}],
       certificacion:{objetivo_mes:120000,prevista:104000}},
-    {id:"obra_cc", codigo:"CC-23", nombre:"Centro Comercial Norte", cliente:"Inmobiliaria Sur",
-      ingeniero:"Javier González", responsable:"Aridany Hernández", fecha_inicio:semStart(-6), fecha_fin_contractual:semEnd(4),
+    {id:"obra_cc", codigo:"P-016/24", nombre:"Instalación de climatización en Nuevos Quirófanos", cliente:"Clínica San Roque",
+      ingeniero:"Raymundo Sánchez", responsable:"Aridany Hernández", sociedad:"CL Frío", estado:"En Curso",
+      fecha_inicio:semStart(-6), fecha_fin_contractual:semEnd(4),
       baseline_horas:5400, ...audit,
+      eco:{presupuesto:2623000.0,costo_contratado:2000000.0,margen_contratado:1.31,cert_acum:1522360.68,costo_total:1108155.57,margen_ratio:1.37,pdte_cert:1100639.32},
       baselines:[{familia:"refrigerante",horas:1600},{familia:"conductos",horas:1100},{familia:"salamaquinas",horas:900},{familia:"electricidad",horas:700},{familia:"control",horas:500},{familia:"otros",horas:600}],
       plan:[
         {id:uid("ph"),familia:"salamaquinas",ini:semStart(-6),fin:semStart(-1),estado:"fin",avance:100},
@@ -492,14 +516,77 @@ function semilla(){
         {id:uid("ph"),familia:"conductos",ini:semStart(-2),fin:semStart(3),estado:"curso",avance:55},
         {id:uid("ph"),familia:"control",ini:semStart(2),fin:semStart(4),estado:"pend",avance:0}],
       certificacion:{objetivo_mes:210000,prevista:225000}},
-    {id:"obra_ho", codigo:"HO-07", nombre:"Hospital Comarcal — Ala B", cliente:"SAS",
-      ingeniero:"Oswaldo Espinosa", responsable:"Aridany Hernández", fecha_inicio:semStart(-2), fecha_fin_contractual:semEnd(12),
+    {id:"obra_ho", codigo:"P-098/26", nombre:"Reforma central térmica en Hospital Lanzarote", cliente:"Servicio Canario de Salud",
+      ingeniero:"Raymundo Sánchez", responsable:"Aridany Hernández", sociedad:"Frío 7", estado:"En Curso",
+      fecha_inicio:semStart(-2), fecha_fin_contractual:semEnd(12),
       baseline_horas:4200, ...audit,
+      eco:{presupuesto:1700000.0,costo_contratado:1441000.0,margen_contratado:1.18,cert_acum:2472.48,costo_total:66266.38,margen_ratio:0.04,pdte_cert:1697527.52},
       baselines:[{familia:"refrigerante",horas:1200},{familia:"conductos",horas:900},{familia:"hidraulica",horas:800},{familia:"electricidad",horas:600},{familia:"difusion",horas:300},{familia:"otros",horas:400}],
       plan:[
         {id:uid("ph"),familia:"hidraulica",ini:semStart(-2),fin:semStart(3),estado:"curso",avance:40},
         {id:uid("ph"),familia:"refrigerante",ini:semStart(0),fin:semStart(6),estado:"curso",avance:15}],
       certificacion:{objetivo_mes:95000,prevista:92000}},
+    // ---- Resto de obras EN CURSO (datos económicos; producción por cargar) ----
+    {id:"obra_03", codigo:"P-014/24", nombre:"Inst. climatización en vvda. Cronista Navarro", cliente:"Oberdan",
+      ingeniero:"Javier González", responsable:"Aridany Hernández", sociedad:"CL Frío", estado:"En Curso",
+      fecha_inicio:semStart(-2), fecha_fin_contractual:semEnd(12), baseline_horas:0, foto:"", ...audit,
+      baselines:[], plan:[], certificacion:{objetivo_mes:0,prevista:0},
+      eco:{presupuesto:45766.06,costo_contratado:32977.91,margen_contratado:1.39,cert_acum:33203.06,costo_total:31835.23,margen_ratio:1.04,pdte_cert:12563.0}},
+    {id:"obra_05", codigo:"OB-05", nombre:"Complejo deportivo municipal de Sta. Brígida", cliente:"Sociedad municipal de deportes de Sta. Brígida",
+      ingeniero:"Aridany Hernández", responsable:"Aridany Hernández", sociedad:"Frío 7", estado:"Terminada",
+      fecha_inicio:semStart(-2), fecha_fin_contractual:semEnd(12), baseline_horas:0, foto:"", ...audit,
+      baselines:[], plan:[], certificacion:{objetivo_mes:0,prevista:0},
+      eco:{presupuesto:221971.41,costo_contratado:171067.0,margen_contratado:1.3,cert_acum:282461.53,costo_total:262712.93,margen_ratio:1.08,pdte_cert:-60490.12}},
+    {id:"obra_07", codigo:"OB-07", nombre:"Sustitución de fancoils en habitaciones", cliente:"Hotel Barceló Margaritas",
+      ingeniero:"Raymundo Sánchez", responsable:"Aridany Hernández", sociedad:"CL Frío", estado:"En Curso",
+      fecha_inicio:semStart(-2), fecha_fin_contractual:semEnd(12), baseline_horas:0, foto:"", ...audit,
+      baselines:[], plan:[], certificacion:{objetivo_mes:0,prevista:0},
+      eco:{presupuesto:337810.95,costo_contratado:270000.0,margen_contratado:1.25,cert_acum:81024.52,costo_total:172168.22,margen_ratio:0.47,pdte_cert:256786.43}},
+    {id:"obra_08", codigo:"P-111/26", nombre:"Instalación cámara de congelados en economato en Hotel Puerto Mogán", cliente:"Club de Mar Mogán",
+      ingeniero:"Oswaldo Espinosa", responsable:"Aridany Hernández", sociedad:"Frío 7", estado:"En Curso",
+      fecha_inicio:semStart(-2), fecha_fin_contractual:semEnd(12), baseline_horas:0, foto:"", ...audit,
+      baselines:[], plan:[], certificacion:{objetivo_mes:0,prevista:0},
+      eco:{presupuesto:38357.54,costo_contratado:27398.0,margen_contratado:1.4,cert_acum:34521.79,costo_total:28720.9,margen_ratio:1.2,pdte_cert:3835.75}},
+    {id:"obra_09", codigo:"P-079/26", nombre:"Sustitución enfriadoras cubierta en La Isleña", cliente:"La Isleña",
+      ingeniero:"Oswaldo Espinosa", responsable:"Aridany Hernández", sociedad:"Frío 7", estado:"Terminada",
+      fecha_inicio:semStart(-2), fecha_fin_contractual:semEnd(12), baseline_horas:0, foto:"", ...audit,
+      baselines:[], plan:[], certificacion:{objetivo_mes:0,prevista:0},
+      eco:{presupuesto:46161.9,costo_contratado:32870.0,margen_contratado:1.4,cert_acum:47877.89,costo_total:35338.19,margen_ratio:1.35,pdte_cert:-1715.99}},
+    {id:"obra_10", codigo:"P-225/25", nombre:"Inst. climatización en nave Nadico El Goro", cliente:"Drakaris Inversiones",
+      ingeniero:"Javier González", responsable:"Aridany Hernández", sociedad:"Frío 7", estado:"En Curso",
+      fecha_inicio:semStart(-2), fecha_fin_contractual:semEnd(12), baseline_horas:0, foto:"", ...audit,
+      baselines:[], plan:[], certificacion:{objetivo_mes:0,prevista:0},
+      eco:{presupuesto:63937.62,costo_contratado:43895.0,margen_contratado:1.46,cert_acum:36796.67,costo_total:39139.86,margen_ratio:0.94,pdte_cert:27140.95}},
+    {id:"obra_11", codigo:"P-026/26", nombre:"Panelado y reacondicionamiento de cámara frigorífica", cliente:"San Juan de Dios",
+      ingeniero:"Oswaldo Espinosa", responsable:"Aridany Hernández", sociedad:"Frío 7", estado:"En Curso",
+      fecha_inicio:semStart(-2), fecha_fin_contractual:semEnd(12), baseline_horas:0, foto:"", ...audit,
+      baselines:[], plan:[], certificacion:{objetivo_mes:0,prevista:0},
+      eco:{presupuesto:39040.23,costo_contratado:27783.0,margen_contratado:1.41,cert_acum:null,costo_total:23478.56,margen_ratio:0.0,pdte_cert:39040.23}},
+    {id:"obra_12", codigo:"P-034/26", nombre:"Edificio 36 vvdas en parcela P15 Tamaraceite sur", cliente:"Urban 2020",
+      ingeniero:"Aridany Hernández", responsable:"Aridany Hernández", sociedad:"Frío 7", estado:"En Curso",
+      fecha_inicio:semStart(-2), fecha_fin_contractual:semEnd(12), baseline_horas:0, foto:"", ...audit,
+      baselines:[], plan:[], certificacion:{objetivo_mes:0,prevista:0},
+      eco:{presupuesto:285139.06,costo_contratado:231352.0,margen_contratado:1.23,cert_acum:null,costo_total:17539.99,margen_ratio:0.0,pdte_cert:285139.06}},
+    {id:"obra_13", codigo:"OB-13", nombre:"Clínica San Roque Maspalomas", cliente:"Clínica San Roque",
+      ingeniero:"Javier González", responsable:"Aridany Hernández", sociedad:"Frío 7", estado:"En Curso",
+      fecha_inicio:semStart(-2), fecha_fin_contractual:semEnd(12), baseline_horas:0, foto:"", ...audit,
+      baselines:[], plan:[], certificacion:{objetivo_mes:0,prevista:0},
+      eco:{presupuesto:null,costo_contratado:null,margen_contratado:null,cert_acum:null,costo_total:1396.9,margen_ratio:0.0,pdte_cert:0.0}},
+    {id:"obra_14", codigo:"P-294/24", nombre:"Instalación de climatización en radiofarmacia Dimec Vegueta", cliente:"Diagnósticos Médicos Especiales",
+      ingeniero:"Raymundo Sánchez", responsable:"Aridany Hernández", sociedad:"Frío 7", estado:"Pend. Comienzo",
+      fecha_inicio:semStart(2), fecha_fin_contractual:semEnd(12), baseline_horas:0, foto:"", ...audit,
+      baselines:[], plan:[], certificacion:{objetivo_mes:0,prevista:0},
+      eco:{presupuesto:64641.58,costo_contratado:46172.0,margen_contratado:1.4,cert_acum:null,costo_total:null,margen_ratio:null,pdte_cert:64641.58}},
+    {id:"obra_15", codigo:"P-093/25", nombre:"Reforma en radiofarmacia Dimec Lanzarote", cliente:"Diagnósticos Médicos Especiales",
+      ingeniero:"Raymundo Sánchez", responsable:"Aridany Hernández", sociedad:"Frío 7", estado:"Pend. Comienzo",
+      fecha_inicio:semStart(2), fecha_fin_contractual:semEnd(12), baseline_horas:0, foto:"", ...audit,
+      baselines:[], plan:[], certificacion:{objetivo_mes:0,prevista:0},
+      eco:{presupuesto:53932.96,costo_contratado:38523.0,margen_contratado:1.4,cert_acum:null,costo_total:null,margen_ratio:null,pdte_cert:53932.96}},
+    {id:"obra_16", codigo:"P-131/26", nombre:"Renovación sistema aire acond. grúas STS-08-09", cliente:"OPCSA",
+      ingeniero:"Oswaldo Espinosa", responsable:"Aridany Hernández", sociedad:"Frío 7", estado:"En Curso",
+      fecha_inicio:semStart(-2), fecha_fin_contractual:semEnd(12), baseline_horas:0, foto:"", ...audit,
+      baselines:[], plan:[], certificacion:{objetivo_mes:0,prevista:0},
+      eco:{presupuesto:49980.68,costo_contratado:35959.0,margen_contratado:1.39,cert_acum:32487.44,costo_total:17647.17,margen_ratio:1.84,pdte_cert:17493.24}},
   ];
 
   const comp = [
@@ -626,7 +713,7 @@ function semilla(){
   ];
   const documentos=[]; // {id,obra,tarea?,tipo:'imagen'|'pdf',nombre,data,por,fecha}
 
-  return {version:5,rolActual:"dir_general",obraActual:"obra_ej",proyectos,personas,documentos,compromisos:comp,tareas,imputaciones,desviaciones,retrabajos,compras_urgentes,consumo,restante,
+  return {version:6,rolActual:"dir_general",obraActual:"obra_ej",proyectos,personas,documentos,compromisos:comp,tareas,imputaciones,desviaciones,retrabajos,compras_urgentes,consumo,restante,
     config:{desv:{green:5,warn:10},ppc:{green:85,warn:70},precioHora:35}};
 }
 const ROL_TXT={dir_general:"Dirección general",dir_tecnica:"Dirección técnica",coordinador:"Coordinador",ingeniero:"Ingeniero",encargado:"Encargado",operario:"Operario"};
@@ -746,7 +833,7 @@ function irA(v){
   $$(".vista").forEach(s=>s.classList.toggle("on",s.dataset.vista===v));
   $$("#nav button").forEach(b=>b.classList.toggle("on",b.dataset.goto===v));
   window.scrollTo({top:0,behavior:"smooth"});
-  ({direccion:vistaDireccion,produccion:vistaProduccion,obra:vistaObra,encargado:vistaEncargado,equipo:vistaEquipo,ajustes:vistaAjustes}[v])?.();
+  ({direccion:vistaDireccion,margenes:vistaMargenes,produccion:vistaProduccion,obra:vistaObra,encargado:vistaEncargado,equipo:vistaEquipo,ajustes:vistaAjustes}[v])?.();
 }
 
 function kpiCard(lab,val,icon,cls,sub){
@@ -794,6 +881,102 @@ function renderAlertas(){
       <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:13px">${esc(x.txt)}</div><div class="mini">${esc(x.obra.nombre)} · ${esc(x.obra.codigo)}</div></div>
       <span class="chip ${x.sev}">${x.sev==="c"?"Crítico":x.sev==="w"?"Vigilar":"OK"}</span>
     </div>`).join("");
+}
+
+/* ---- Márgenes de obra (económico · no visible para operarios) ---- */
+let margFiltro = {soc:"", estado:""};
+function margObra(p){
+  const e=p.eco||{};
+  const presup=+e.presupuesto||0, contr=+e.costo_contratado||0;
+  const cert=+e.cert_acum||0, coste=+e.costo_total||0, pdte=+e.pdte_cert||0;
+  const mEur=cert-coste;
+  const pctCoste = coste>0 ? mEur/coste*100 : null;                 // margen sobre coste real
+  const pctCert  = cert>0  ? mEur/cert*100  : null;                 // margen sobre certificación
+  const contratadoPct = e.margen_contratado ? (e.margen_contratado-1)*100 : null; // margen contratado s/coste
+  const avanceCert = presup>0 ? cert/presup*100 : null;             // % certificado del presupuesto
+  const inicio = cert<=0 || (avanceCert!=null && avanceCert<8);     // recién iniciada: margen aún poco significativo
+  return {presup,contr,cert,coste,pdte,mEur,pctCoste,pctCert,contratadoPct,avanceCert,inicio};
+}
+function semMargen(m){
+  if(m.inicio || m.pctCoste==null) return "x";
+  if(m.mEur<0) return "c";
+  if(m.contratadoPct!=null && m.pctCoste < m.contratadoPct*0.55) return "w";
+  if(m.pctCoste < 12) return "w";
+  return "g";
+}
+function obrasMarg(){
+  return DB.proyectos.filter(p=>p.eco).filter(p=>{
+    if(margFiltro.soc && p.sociedad!==margFiltro.soc) return false;
+    if(margFiltro.estado && (p.estado||"")!==margFiltro.estado) return false;
+    return true;
+  });
+}
+function setMargSoc(s){ margFiltro.soc=s; vistaMargenes(); }
+function setMargEst(s){ margFiltro.estado=s; vistaMargenes(); }
+function vistaMargenes(){
+  const obras=obrasMarg();
+  let cert=0,coste=0,presup=0,contr=0,pdte=0;
+  obras.forEach(p=>{const m=margObra(p); cert+=m.cert; coste+=m.coste; presup+=m.presup; contr+=m.contr; pdte+=m.pdte;});
+  const mEur=cert-coste;
+  const pctCert = cert>0? mEur/cert*100 : null;
+  const pctCoste= coste>0? mEur/coste*100 : null;
+  const semG = mEur<0?"c":(pctCoste!=null&&pctCoste<12?"w":"g");
+  const SOC=["","Frío 7","CL Frío"], SOCt={"":"Todas","Frío 7":"Frío 7","CL Frío":"CL Frío"};
+  const EST=["","En Curso","Terminada","Pend. Comienzo"], ESTt={"":"Todas","En Curso":"En curso","Terminada":"Terminadas","Pend. Comienzo":"Pend. comienzo"};
+  const rows=obras.map(p=>({p,m:margObra(p)})).sort((A,B)=>B.m.mEur-A.m.mEur);
+  $('[data-vista="margenes"]').innerHTML=`
+    <div class="pagehead"><div><h2>Márgenes de obra</h2><div class="desc">Certificación acumulada frente a coste real · margen por obra y por sociedad</div></div></div>
+    <div class="panel"><div class="cuerpo">
+      <div class="mini" style="font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Sociedad</div>
+      <div class="seg" style="margin-bottom:14px">${SOC.map(s=>`<button class="${margFiltro.soc===s?'on':''}" onclick="setMargSoc('${s}')">${SOCt[s]}</button>`).join("")}</div>
+      <div class="mini" style="font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Estado</div>
+      <div class="seg">${EST.map(s=>`<button class="${margFiltro.estado===s?'on':''}" onclick="setMargEst('${s}')">${ESTt[s]}</button>`).join("")}</div>
+    </div></div>
+    <div class="kpis">
+      ${kpiCard("Obras", obras.length, "folder","n","En este filtro")}
+      ${kpiCard("Certificación acumulada", fmtEur(cert), "euro","n","Facturado a origen")}
+      ${kpiCard("Coste real", fmtEur(coste), "box","n","Gasto a origen")}
+      ${kpiCard("Margen acumulado", (mEur>=0?"+":"")+fmtEur(mEur), "trending", semG, pctCert!=null?fmtPct(pctCert)+" sobre certificación":"")}
+      ${kpiCard("Margen sobre coste", pctCoste==null?"—":fmtPct(pctCoste), "activity", semG, "Beneficio / coste")}
+      ${kpiCard("Pendiente de certificar", fmtEur(pdte), "clock","n","Cartera por facturar")}
+    </div>
+    <div class="panel">
+      <div class="cab"><h3>${ICON("euro",16)} Margen por obra</h3><div class="sep"></div><span class="mini">Ordenado por margen €</span></div>
+      <div class="cuerpo">${rows.length?rows.map(({p,m})=>margRow(p,m)).join(""):`<div class="empty">${ICON("euro",40)}<p>Sin obras para este filtro.</p></div>`}</div>
+    </div>
+    <div class="hint" style="margin-top:14px">${ICON("info",16)}<span>Las obras recién iniciadas certifican poco todavía, por lo que su margen a origen aún no es representativo. La marca vertical oscura sobre cada barra es el <b>margen contratado</b>.</span></div>`;
+}
+function margRow(p,m){
+  const sem=semMargen(m);
+  const estCls = p.estado==="Terminada"?"g":p.estado==="Pend. Comienzo"?"x":"n";
+  const lo=-10, hi=40, pos=x=>Math.max(0,Math.min(100,(x-lo)/(hi-lo)*100));
+  const zero=pos(0);
+  let barFill="";
+  if(m.pctCoste!=null){
+    const val=Math.max(lo,Math.min(hi,m.pctCoste));
+    const col=sem==='c'?'var(--bad)':sem==='w'?'var(--warn)':'var(--ok)';
+    barFill = m.pctCoste>=0
+      ? `<i style="left:${zero}%;width:${pos(val)-zero}%;background:${col}"></i>`
+      : `<i style="left:${pos(val)}%;width:${zero-pos(val)}%;background:var(--bad)"></i>`;
+  }
+  const target = m.contratadoPct!=null?`<span class="mtarget" style="left:${pos(Math.min(hi,m.contratadoPct))}%" title="Margen contratado ${fmtPct(m.contratadoPct)}"></span>`:"";
+  return `
+    <div class="mg-row">
+      <div class="mg-head">
+        <div class="mg-name">${esc(p.nombre)}<div class="mini">${esc(p.cliente||"—")} · ${esc(p.codigo)} · ${esc(p.ingeniero||"—")}</div></div>
+        <div class="mg-chips"><span class="chip ${p.sociedad==='CL Frío'?'n':'w'}">${esc(p.sociedad||"—")}</span><span class="chip ${estCls}">${esc(p.estado||"—")}</span></div>
+      </div>
+      <div class="mg-grid">
+        <div class="mg-fig"><span class="l">Certificado</span><b>${fmtEur(m.cert)}</b></div>
+        <div class="mg-fig"><span class="l">Coste real</span><b>${fmtEur(m.coste)}</b></div>
+        <div class="mg-fig"><span class="l">Margen</span><b style="color:${m.mEur<0?'var(--bad)':'var(--ok)'}">${m.mEur>=0?"+":""}${fmtEur(m.mEur)}</b></div>
+        <div class="mg-fig"><span class="l">Pdte. certificar</span><b>${fmtEur(m.pdte)}</b></div>
+      </div>
+      <div class="mg-bar">
+        <div class="mg-track">${barFill}${target}<span class="mg-zero" style="left:${zero}%"></span></div>
+        <div class="mg-pct">${m.inicio?`<span class="chip x">Recién iniciada</span>`:(m.pctCoste==null?`<span class="chip x">—</span>`:`<span class="chip ${sem}">${m.pctCoste>=0?"+":""}${fmtPct(m.pctCoste)} s/coste</span>`)}</div>
+      </div>
+    </div>`;
 }
 
 /* ---- Dashboard Producción ---- */
