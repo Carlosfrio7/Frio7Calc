@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light" />
 <title>Márgenes de Obra</title>
 <meta name="theme-color" content="#fff7f0" />
-<meta name="description" content="Dashboard de rentabilidad de obras Frío7 y CL Frío: margen por obra (certificado vs. coste), material en curso editable e histórico." />
+<meta name="description" content="Dashboard de rentabilidad de obras Frío7 y CL Frío: margen por obra sobre certificación y sobre coste, material en curso editable e histórico." />
 <link rel="icon" type="image/jpeg" href="/logotipo.jpg" />
 <link rel="apple-touch-icon" href="/logotipo.jpg" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -131,6 +131,7 @@ section{margin-top:30px}
 .r-val .eur{font-family:var(--font-display);font-weight:600;font-size:1.06rem}
 .r-val .eur.pos{color:var(--good)} .r-val .eur.neg{color:var(--bad)}
 .r-val .pct{font-size:.73rem;color:var(--muted);font-weight:700}
+.r-val .costpct{font-size:.66rem;color:var(--faint);font-weight:700;margin-top:1px}
 .r-val .real{font-size:.66rem;color:var(--faint);font-weight:700;margin-top:1px}
 
 /* histórico */
@@ -162,7 +163,7 @@ section{margin-top:30px}
 
 /* table */
 .tablecard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);overflow-x:auto}
-table{border-collapse:collapse;width:100%;min-width:760px;font-size:.83rem}
+table{border-collapse:collapse;width:100%;min-width:840px;font-size:.83rem}
 thead th{text-align:right;padding:12px;font-size:.66rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:800;border-bottom:2px solid var(--border);cursor:pointer;white-space:nowrap;user-select:none;background:var(--surface-2)}
 thead th.l{text-align:left}
 thead th:hover{color:var(--fg)}
@@ -296,6 +297,7 @@ function realMargen(o){return (o.cert!=null&&o.coste!=null)?o.cert-o.coste:null;
 function effCert(o){return (o.cert||0)+adjOf(o);}
 function effMargen(o){if(o.coste==null && o.cert==null && !adjOf(o))return null;if(o.coste==null)return null;return effCert(o)-o.coste;}
 function effPct(o){const c=effCert(o);return c>0?effMargen(o)/c*100:null;}
+function effCostPct(o){const m=effMargen(o);return (m!=null && o.coste && o.coste!==0)?m/o.coste*100:null;}
 function realPct(o){return (o.cert&&o.coste!=null)?(o.cert-o.coste)/o.cert*100:null;}
 function kind(o){const m=effMargen(o);if(m==null)return 'na';if(m>=0)return 'ok';if(o.incip)return 'incip';if(o.curso)return 'desfase';return 'loss';}
 
@@ -335,6 +337,7 @@ function render(){
 function renderKPI(){
   const s=agg(curList());
   const hasAdj=s.effc>s.cert+0.5;
+  const costpctG=s.coste?((hasAdj?s.effmargen:s.margen)/s.coste*100):null;
   const el=document.getElementById('kpis');
   const margenTile = hasAdj
     ? {l:'Margen proyectado',v:eur.format(s.effmargen),sub:'real '+eur.format(s.margen),cls:s.effmargen>=0?'pos':'neg',tone:'mint',proj:'incl. material en curso'}
@@ -344,7 +347,7 @@ function renderKPI(){
     {l:'Certificado',v:eur.format(s.cert),sub:(hasAdj?'+ '+eur.format(s.effc-s.cert)+' en curso':'acumulado'),tone:'teal'},
     {l:'Coste',v:eur.format(s.coste),sub:'total incurrido',tone:'sky'},
     margenTile,
-    {l:'% Margen',v:pct(hasAdj?s.effpct:s.mpct),sub:'sobre certificado',cls:(hasAdj?s.effmargen:s.margen)>=0?'pos':'neg',tone:'butter'},
+    {l:'% Margen',v:pct(hasAdj?s.effpct:s.mpct),sub:'s/cert · s/coste '+pct(costpctG),cls:(hasAdj?s.effmargen:s.margen)>=0?'pos':'neg',tone:'butter'},
     {l:'Margen medio',v:pct(s.medio),sub:(s.medioObj!=null?'objetivo '+pct(s.medioObj):'por obra')+' · '+s.reps+' obras',tone:'lav'},
   ];
   el.innerHTML=tiles.map(t=>`<div class="kpi t-${t.tone}">
@@ -391,7 +394,8 @@ function renderBars(){
       </div>
       <div class="r-val">
         <div class="eur num ${pos?'pos':'neg'}" data-eur>${m==null?'—':(pos?'+':'')+eur.format(m)}</div>
-        <div class="pct num" data-pct>${pct(effPct(o))}</div>
+        <div class="pct num" data-pct>${pct(effPct(o))} <span style="font-weight:600;color:var(--faint)">s/cert</span></div>
+        <div class="costpct num" data-costpct>${pct(effCostPct(o))} s/coste</div>
         ${adj>0&&real!=null?`<div class="real num">real ${(real>=0?'+':'')+eur.format(real)}</div>`:''}
       </div>
     </div>`;
@@ -425,7 +429,8 @@ function patchRow(row,key){
   bar.className='bar-fill '+(adj>0?'proj ':'')+(k==='ok'?'pos':k==='loss'?'neg':'warnb');
   bar.style.cssText=pos?`left:50%;width:${w}%`:`right:50%;width:${w}%`;
   const ev=row.querySelector('[data-eur]');ev.className='eur num '+(pos?'pos':'neg');ev.textContent=m==null?'—':(pos?'+':'')+eur.format(m);
-  row.querySelector('[data-pct]').textContent=pct(effPct(o));
+  row.querySelector('[data-pct]').innerHTML=pct(effPct(o))+' <span style="font-weight:600;color:var(--faint)">s/cert</span>';
+  row.querySelector('[data-costpct]').textContent=pct(effCostPct(o))+' s/coste';
   // real line
   let realEl=row.querySelector('.real');
   if(adj>0&&real!=null){if(!realEl){realEl=document.createElement('div');realEl.className='real num';row.querySelector('.r-val').appendChild(realEl);}realEl.textContent='real '+((real>=0?'+':'')+eur.format(real));}
@@ -468,11 +473,12 @@ const COLS=[
   {k:'cert',t:'Certificado',f:v=>v==null?'—':eur.format(v)},
   {k:'coste',t:'Coste',f:v=>v==null?'—':eur.format(v)},
   {k:'margen',t:'Margen',f:v=>v==null?'—':(v>=0?'+':'')+eur.format(v),cls:v=>v==null?'':(v>=0?'pos-t':'neg-t')},
-  {k:'mpct',t:'% Margen',f:pct,cls:v=>v==null?'':(v>=0?'pos-t':'neg-t')},
+  {k:'mpct',t:'% s/cert',f:pct,cls:v=>v==null?'':(v>=0?'pos-t':'neg-t')},
+  {k:'costpct',t:'% s/coste',f:pct,cls:v=>v==null?'':(v>=0?'pos-t':'neg-t')},
   {k:'objpct',t:'Objetivo',f:pct},
 ];
 function dotColor(o){const k=kind(o);return k==='ok'?'var(--good)':k==='loss'?'var(--bad)':k==='na'?'var(--faint)':'var(--warn)';}
-function tval(o,k){if(k==='margen')return effMargen(o);if(k==='mpct')return effPct(o);return o[k];}
+function tval(o,k){if(k==='margen')return effMargen(o);if(k==='mpct')return effPct(o);if(k==='costpct')return effCostPct(o);return o[k];}
 function renderTable(){
   const list=curList().slice();
   document.getElementById('tbl-hint').textContent=list.length+' obras · clic en cabecera para ordenar';
