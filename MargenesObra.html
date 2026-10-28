@@ -99,7 +99,7 @@ section{margin-top:30px}
 .barcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
 .row{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(180px,1.7fr) 128px;gap:14px;align-items:center;padding:13px 17px;border-top:1px solid var(--border)}
 .row:first-child{border-top:0}
-.row:hover{background:var(--surface-2)}
+.row:hover{background:color-mix(in srgb,var(--teal) 9%,var(--surface));box-shadow:inset 3px 0 0 var(--teal)}
 .r-name{min-width:0}
 .r-name .cli{font-weight:800;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .r-name .ob{font-size:.75rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
@@ -171,7 +171,7 @@ thead th .ar{opacity:.4;font-size:.7em}
 thead th[data-active] .ar{opacity:1;color:var(--orange)}
 tbody td{padding:10px 12px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap;font-weight:600}
 tbody td.l{text-align:left;max-width:250px;overflow:hidden;text-overflow:ellipsis}
-tbody tr:hover{background:var(--surface-2)}
+tbody tr:hover{background:color-mix(in srgb,var(--teal) 9%,var(--surface));box-shadow:inset 3px 0 0 var(--teal)}
 tbody td .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:1px}
 .pos-t{color:var(--good);font-weight:800} .neg-t{color:var(--bad);font-weight:800}
 
