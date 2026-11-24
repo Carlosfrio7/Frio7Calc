@@ -85,12 +85,12 @@
   const ic=(n,s=22)=>`<svg class="ic" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[n]||""}</svg>`;
 
   const tools = [
-    {href:"Frio7Produccion.html", icon:"gauge", feat:true, tag:"Nuevo", t:"Producción", d:"Sistema operativo de producción: obras, presupuesto productivo, lookahead, desviaciones y dashboards."},
-    {href:"MotivaStudio.html", icon:"dumbbell", tag:"Nuevo", t:"Motiva Studio", d:"Pizarra digital de entrenamientos: tarjetas, biblioteca de ejercicios, temporizadores y modo presentación."},
-    {href:"CalculadoraHVACPRO.html", icon:"snow", t:"Calculadora HVAC", d:"Cálculo de cargas y selección para climatización y refrigeración."},
-    {href:"HorarioColegio.html", icon:"school", t:"Horario del colegio", d:"Horario escolar editable con vista móvil por día."},
-    {href:"HorarioInfantil.html", icon:"calendar", t:"Plan semanal", d:"Planificador semanal visual con arrastrar y soltar."},
-    {href:"AfinadorGuitarra.html", icon:"music", t:"Afinador de guitarra", d:"Afinador cromático desde el navegador."},
+    {href:"Frio7Produccion/Frio7Produccion.html", icon:"gauge", feat:true, tag:"Nuevo", t:"Producción", d:"Sistema operativo de producción: obras, presupuesto productivo, lookahead, desviaciones y dashboards."},
+    {href:"MotivaStudio/MotivaStudio.html", icon:"dumbbell", tag:"Nuevo", t:"Motiva Studio", d:"Pizarra digital de entrenamientos: tarjetas, biblioteca de ejercicios, temporizadores y modo presentación."},
+    {href:"CalculadoraHVACPRO/CalculadoraHVACPRO.html", icon:"snow", t:"Calculadora HVAC", d:"Cálculo de cargas y selección para climatización y refrigeración."},
+    {href:"HorarioColegio/HorarioColegio.html", icon:"school", t:"Horario del colegio", d:"Horario escolar editable con vista móvil por día."},
+    {href:"HorarioInfantil/HorarioInfantil.html", icon:"calendar", t:"Plan semanal", d:"Planificador semanal visual con arrastrar y soltar."},
+    {href:"AfinadorGuitarra/AfinadorGuitarra.html", icon:"music", t:"Afinador de guitarra", d:"Afinador cromático desde el navegador."},
   ];
   document.getElementById("grid").innerHTML = tools.map(x=>`
     <a class="card ${x.feat?'feat':''}" href="${x.href}">
